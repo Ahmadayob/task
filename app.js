@@ -26,6 +26,9 @@ app.use('/api/teams', teamRoutes);
 const projectRoutes = require('./routes/projects');
 app.use('/api/projects', projectRoutes);
 
+const boardRoutes = require('./routes/boards');
+app.use('/api/projects', boardRoutes);
+
 // Database Connection
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,

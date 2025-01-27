@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const Project = require('../models/project');
+const Board = require('../models/board');
 
 const router = express.Router();
 
@@ -50,5 +51,25 @@ router.put('/:id', verifyToken, async (req, res) => {
         res.status(500).json({error: 'Error updating project', details: error.message});
     }
 })
+
+// Get project details with populated boards
+router.get('/:id', verifyToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+  
+      // Find the project and populate the boards field
+      const project = await Project.findById(id).populate('boards');
+  
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+  
+      res.json({ project });
+    } catch (error) {
+      console.error('Error fetching project details:', error);
+      res.status(500).json({ error: 'Error fetching project details', details: error.message });
+    }
+  });
+  
 
 module.exports = router;
