@@ -14,8 +14,8 @@ app.use(express.json());
 const authRoutes = require("./routes/auth");
 app.use('/api/auth', authRoutes);
 
-const taskRoutes = require("./routes/tasks");
-app.use('/api/tasks', taskRoutes);
+const taskRoutes = require('./routes/tasks');
+app.use('/api/boards', taskRoutes);
 
 const userRoutes = require('./routes/users');
 app.use('/api/users', userRoutes);
@@ -27,7 +27,10 @@ const projectRoutes = require('./routes/projects');
 app.use('/api/projects', projectRoutes);
 
 const boardRoutes = require('./routes/boards');
-app.use('/api/projects', boardRoutes);
+app.use('/api/boards', boardRoutes);
+
+const subtaskRoutes = require('./routes/subtasks');
+app.use('/api/tasks', subtaskRoutes); 
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI, {

@@ -2,6 +2,7 @@ const express = require("express");
 const {verifyToken} = require("../middleware/auth");
 const Project = require('../models/project');
 const Board = require('../models/board');
+const Task = require('../models/task');
 
 const router = express.Router();
 
@@ -51,6 +52,31 @@ router.get('/:projectId/boards', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching boards:', error);
     res.status(500).json({ error: 'Error fetching boards', default: error.message});
+  }
+});
+
+router.get('/:boardId', verifyToken, async (req, res) => {
+  try {
+    const { boardId } = req.params;
+
+    // find the board detailes with tasks and sybtasks
+    const board = await Board.findById(boardId).populate({
+      path: 'tasks',
+      populate: {
+        path: 'subtasks',
+      },
+    });
+
+    //find the board and return it's tasks
+    
+    if (!board) {
+      return res.status(404).json({ error: 'Board not found'});
+    }
+
+    res.json({ board });
+  } catch (error) {
+    console.error('Error Fetching board detailes', error);
+    res.status(500).json({ error: 'Error fetching board detailes', details: error.message});
   }
 });
 
