@@ -59,13 +59,13 @@ router.get('/',verifyToken ,async (req, res) => {
     }
   });
 
- //Get all tasks for the board
+ //Get all tasks for the board, with full subtask detailes
  router.get('/:boardId/tasks', verifyToken, async (req, res) =>{ 
     try {
         const { boardId }= req.params;
 
         //Find all tasks fr the board
-        const tasks = await Task.find({ board: boardId }).populate('assignees', ' name email');
+        const tasks = await Task.find({ board: boardId }).populate('subtasks');
 
         res.json({tasks});
     } catch (error) {
@@ -73,5 +73,58 @@ router.get('/',verifyToken ,async (req, res) => {
         res.status(500).json({ error: 'Error fetching tasks', detailes: error.message})
     }
  }) 
+
+ router.put('/:taskId', verifyToken, async (req, res) =>{
+    try {
+        const {taskId} = req.params;
+        const { title, description, deadline, assignees, status, attachments } = req.body;
+
+        const task = await Task.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ error: 'Task not found'});
+        }
+
+        // Update fields if provided
+        if (title) task.title = title;
+        if (description) task.description = description;
+        if (deadline) task.deadline = deadline;
+        if (assignees) task.assignees = assignees;
+        if (status) task.status = status;
+        if (attachments) task.attachments = attachments;
+
+        await task.save();
+
+        res.json({ message: 'Task update succsessfully', task});
+    } catch (error) {
+        console.error('Error updating task:', error);
+        res.status(500).json({ error: 'Error updating task', details: error.message});
+    }
+ });
+
+ // Delete a task and its subtasks
+ router.delete("/:taskId", verifyToken, async (req, res) => {
+    try {
+        const { taskId } = req.params;
+
+        // Ensure taskId exists
+        if (!taskId) {
+            return res.status(400).json({ error: "Task ID is required" });
+        }
+
+        // Find the task
+        const task = await Task.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+
+        // Delete the task (use `Task` model, not `task` instance)
+        await Task.findByIdAndDelete(taskId);
+
+        res.json({ message: "Task deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting task:", error);
+        res.status(500).json({ error: "Error deleting task", details: error.message });
+    }
+});
 
 module.exports = router;

@@ -54,4 +54,72 @@ router.get('/:taskId/subtasks', verifyToken, async (req, res) =>{
     }
 })
 
+
+// Update a subtask inside a task
+router.put("/:taskId/subtasks/:subtaskId", verifyToken, async (req, res) => {
+    try {
+        const { taskId, subtaskId } = req.params;
+        const { title, isCompleted, deadline } = req.body;
+
+        // Ensure taskId and subtaskId exist
+        if (!taskId || !subtaskId) {
+            return res.status(400).json({ error: "Task ID and Subtask ID are required" });
+        }
+
+        // Find the parent task
+        const task = await Task.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+
+        // Find the subtask inside the task's `subtasks` array
+        const subtask = task.subtasks.id(subtaskId);
+        if (!subtask) {
+            return res.status(404).json({ error: "Subtask not found" });
+        }
+
+        // Update only the fields provided in the request
+        if (title) subtask.title = title;
+        if (isCompleted !== undefined) subtask.isCompleted = isCompleted;
+        if (deadline) subtask.deadline = deadline;
+        subtask.updatedAt = new Date();
+
+        await task.save();
+
+        res.json({ message: "Subtask updated successfully", subtask });
+    } catch (error) {
+        console.error("Error updating subtask:", error);
+        res.status(500).json({ error: "Error updating subtask", details: error.message });
+    }
+});
+
+// Delete a subtask inside a task
+router.delete("/:taskId/subtasks/:subtaskId", verifyToken, async (req, res) => {
+    try {
+        const { taskId, subtaskId } = req.params;
+
+        // Find the parent task
+        const task = await Task.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+
+        // Find the index of the subtask and remove it
+        const subtaskIndex = task.subtasks.findIndex(sub => sub._id.toString() === subtaskId);
+        if (subtaskIndex === -1) {
+            return res.status(404).json({ error: "Subtask not found" });
+        }
+
+        task.subtasks.splice(subtaskIndex, 1);
+        await task.save();
+
+        res.json({ message: "Subtask deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting subtask:", error);
+        res.status(500).json({ error: "Error deleting subtask", details: error.message });
+    }
+});
+
+
+
 module.exports = router;

@@ -42,12 +42,16 @@ router.post('/:projectId/boards', verifyToken, async (req, res) => {
   }
 });
 
-//Get all boards for a project
+//Get all boards for a project with all task detailes
 router.get('/:projectId/boards', verifyToken, async (req, res) => {
   try {
     const {projectId} = req.params;
 
-    const boards = await Board.find({ project: projectId });
+    const boards = await Board.find({ project: projectId }).populate({
+      path: "tasks",
+      populate: {path: 'subtasks'}
+    });
+    
     res.json({ boards });
   } catch (error) {
     console.error('Error fetching boards:', error);

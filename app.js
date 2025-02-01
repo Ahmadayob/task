@@ -15,7 +15,7 @@ const authRoutes = require("./routes/auth");
 app.use('/api/auth', authRoutes);
 
 const taskRoutes = require('./routes/tasks');
-app.use('/api/boards', taskRoutes);
+app.use('/api/tasks', taskRoutes); // or api/boards for some tests FOR NOW ONLY
 
 const userRoutes = require('./routes/users');
 app.use('/api/users', userRoutes);
@@ -30,7 +30,8 @@ const boardRoutes = require('./routes/boards');
 app.use('/api/boards', boardRoutes);
 
 const subtaskRoutes = require('./routes/subtasks');
-app.use('/api/tasks', subtaskRoutes); 
+app.use('/api/tasks', subtaskRoutes); // or api/tasks for
+
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI, {
