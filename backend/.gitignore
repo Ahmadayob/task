@@ -1,2 +1,35 @@
+# Flutter/Dart related
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+**/android/.gradle/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework/
+**/ios/Flutter/Flutter.podspec
+**/ios/.generated/
+**/.idea/  # IntelliJ/Android Studio project settings
+**/.vscode/ # VS Code settings
+**/web/.dart_tool/
+**/web/.firebase/
+
+# Node.js backend related
+node_modules/
 .env
-node_module
+package-lock.json
+yarn.lock
+.npmrc
+.npm/
+.nvmrc
+dist/
+coverage/
+firebase-debug.log
+
+# General IDE/OS files
+**/.DS_Store  # macOS metadata
+**/Thumbs.db  # Windows thumbnail cache
+**/.vscode/   # VS Code workspace settings
+**/.idea/     # IntelliJ project settings
