@@ -84,4 +84,6 @@ router.get('/:boardId', verifyToken, async (req, res) => {
   }
 });
 
+
+
 module.exports = router;

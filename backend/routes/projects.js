@@ -81,5 +81,22 @@ router.get('/:id', verifyToken, async (req, res) => {
     }
   });
   
+  router.delete('/:id', verifyToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+  
+      // Find the project and delete it
+      const project = await Project.findByIdAndDelete(id);
+  
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+  
+      res.json({ message: 'Project deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      res.status(500).json({ error: 'Error deleting project', details: error.message });
+    }
+  });
 
 module.exports = router;

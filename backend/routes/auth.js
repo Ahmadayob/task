@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -23,36 +24,46 @@ router.post('/register', async (req, res) => {
 
 //Login
 router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    console.log('Login request received for:', email);
+    try {
+        const { email, password } = req.body;
+        console.log('Login request received for:', email);
 
-    // Find user
-    const user = await User.findOne({ email });
-    console.log('User found:', user);
+        // Find user
+        const user = await User.findOne({ email });
+        console.log('User found:', user);
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        // Compare password
+        const isMatch = await bcrypt.compare(password, user.password);
+        console.log('Password match:', isMatch);
+
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        // Generate JWT token
+        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '100h' });
+        console.log('Token generated:', token);
+
+        res.json({ token });
+    } catch (error) {
+        console.error('Error during login:', error);
+        res.status(500).json({ error: 'Error logging in', details: error.message });
     }
-
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password match:', isMatch);
-
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '100h' });
-    console.log('Token generated:', token);
-
-    res.json({ token });
-  } catch (error) {
-    console.error('Error during login:', error);
-    res.status(500).json({ error: 'Error logging in', details: error.message });
-  }
 });
 
-  
+// Logout
+router.post('/logout', verifyToken, async (req, res) => {
+    try {
+      //just for testing
+        res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({ error: 'Error logging out', details: error.message });
+    }
+});
+
 module.exports = router;

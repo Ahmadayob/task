@@ -159,5 +159,19 @@ module.exports = (io) => {
         }
     });
 
+    router.get('/:taskId', verifyToken, async (req, res) => {    
+        try {
+            const {taskId} = req.params;
+            const task = await Task.findById(taskId);
+            if (!task) {
+                return res.status(404).json({ error: 'Task not found'});
+            }
+            res.json({ task });
+        } catch (error) {
+            console.error('Error fetching task:', error);
+            res.status(500).json({ error: 'Error fetching task', details: error.message});
+        }
+    })
+
     return router;
 }
