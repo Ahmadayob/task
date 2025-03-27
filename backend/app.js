@@ -1,95 +1,56 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const http = require("http");
-const {Server} = require("socket.io");
-require("dotenv").config();
+// Main application file
+const express = require("express")
+const cors = require("cors")
+const helmet = require("helmet")
+const cookieParser = require("cookie-parser")
+const { errorHandler, notFound } = require("./middleware/error.middleware")
+const logger = require("./utils/logger")
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET","POST"],
-        allowedHeaders: ["Authorization"],
-        credentials: true
-    },
-    transports: ["websocket"],
-    allowEIO3: true,
-    pingInterval: 25000,
-    pingTimeout: 5000,
-});
+// Import routes
+const authRoutes = require("./routes/auth.routes")
+const userRoutes = require("./routes/users.routes")
+const projectRoutes = require("./routes/projects.routes")
+const boardRoutes = require("./routes/board.routes")
+const taskRoutes = require("./routes/task.routes")
+const subtaskRoutes = require("./routes/subtasks.routes")
+const activityLogRoutes = require("./routes/activityLog.routes")
+const notificationRoutes = require("./routes/notifications.routes")
+const teamRoutes = require("./routes/teams.routes")
 
-// Force WebSocket to listen on the correct network interface
-server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-});
+// Initialize express app
+const app = express()
 
-//Middleware
-app.use(cors());
-app.use(express.json());
+// Middleware
+app.use(helmet())
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    credentials: true,
+  }),
+)
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser())
 
-app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy", "default-src 'self' ws://localhost:3001");
-    next();
-});
+// API routes
+app.use("/api/auth", authRoutes)
+app.use("/api/users", userRoutes)
+app.use("/api/projects", projectRoutes)
+app.use("/api/boards", boardRoutes)
+app.use("/api/tasks", taskRoutes)
+app.use("/api/subtasks", subtaskRoutes)
+app.use("/api/activity-logs", activityLogRoutes)
+app.use("/api/notifications", notificationRoutes)
+app.use("/api/teams", teamRoutes)
 
+// Health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Server is running" })
+})
 
-//Real-time Notification System (WebSocet Event)
-io.on("connection", (socket) => {
-    console.log(`New WebSocket Connection: ${socket.id}`);
+// Error handling middleware
+app.use(notFound)
+app.use(errorHandler)
 
-    socket.on("join", (userId) => {
-        console.log(`👤 User joined: ${userId}`);
-        socket.join(userId);
-    });
+module.exports = app
 
-    socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
-    });
-});
-
-app.get("/", (req, res) => {
-    res.send("✅ WebSocket Server Running!");
-});
-
-
-
-//Routes
-const authRoutes = require("./routes/auth");
-app.use('/api/auth', authRoutes);
-
-const taskRoutes = require('./routes/tasks')(io);
-app.use('/api/boards', taskRoutes); // or api/boards for some tests FOR NOW ONLY
-
-const userRoutes = require('./routes/users');
-app.use('/api/users', userRoutes);
-
-const teamRoutes = require('./routes/teams');
-app.use('/api/teams', teamRoutes);
-
-const projectRoutes = require('./routes/projects');
-app.use('/api/projects', projectRoutes);
-
-const boardRoutes = require('./routes/boards');
-app.use('/api/boards', boardRoutes);
-
-const subtaskRoutes = require('./routes/subtasks');
-app.use('/api/tasks', subtaskRoutes); // or api/tasks for
-
-const notificationRoutes = require('./routes/notifications');
-app.use("/api/notifications", notificationRoutes);
-
-const activityLogRoutes = require("./routes/activityLog"); 
-app.use("/api/activity-logs", activityLogRoutes);
-
-// Database Connection
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => console.log('MongoDB connected'))
-   .catch((err) => console.error('MongoDB connection error:', err));
-
-// Start Server
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
