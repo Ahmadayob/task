@@ -1,55 +1,83 @@
-// Project model
-const mongoose = require('mongoose');
+const mongoose = require("mongoose")
+const Schema = mongoose.Schema
 
-const projectSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'Please add a title'],
-    trim: true,
-    minlength: [3, 'Title must be at least 3 characters'],
-    maxlength: [100, 'Title cannot be more than 100 characters']
+const ProjectSchema = new Schema(
+  {
+    title: {
+      type: String,
+      required: [true, "Project title is required"],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    manager: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Project manager is required"],
+    },
+    members: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    deadline: {
+      type: Date,
+    },
+    status: {
+      type: String,
+      enum: ["Planning", "In Progress", "On Hold", "Completed", "Cancelled"],
+      default: "Planning",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  description: {
-    type: String,
-    maxlength: [500, 'Description cannot be more than 500 characters']
+  {
+    timestamps: true,
   },
-  manager: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  members: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  deadline: {
-    type: Date
-  },
-  status: {
-    type: String,
-    enum: ['Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled'],
-    default: 'Planning'
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+)
+
+// Add a method to calculate project progress
+ProjectSchema.methods.calculateProgress = async function () {
+  const Board = mongoose.model("Board")
+  const Task = mongoose.model("Task")
+
+  // Find all boards in this project
+  const boards = await Board.find({ project: this._id })
+  const boardIds = boards.map((board) => board._id)
+
+  // Get total tasks count
+  const totalTasks = await Task.countDocuments({ board: { $in: boardIds } })
+
+  // Get completed tasks count
+  const completedTasks = await Task.countDocuments({
+    board: { $in: boardIds },
+    status: "Done",
+  })
+
+  return {
+    totalTasks,
+    completedTasks,
+    progressPercentage: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
   }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+}
 
-// Virtual for boards
-projectSchema.virtual('boards', {
-  ref: 'Board',
-  localField: '_id',
-  foreignField: 'project',
-  justOne: false
-});
+// Update the project controller to include progress information
+ProjectSchema.set("toJSON", {
+  transform: (doc, ret, options) => {
+    ret.id = ret._id
+    delete ret.__v
+    return ret
+  },
+})
 
-module.exports = mongoose.model('Project', projectSchema);
+module.exports = mongoose.model("Project", ProjectSchema)
+

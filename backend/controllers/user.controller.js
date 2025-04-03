@@ -4,6 +4,82 @@ const ApiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 
 class UserController {
+
+
+// Get user profile
+getUserProfile = async (req, res) => {
+  try {
+    // The user is already available from the auth middleware
+    const user = await User.findById(req.user._id).select("-password")
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+      },
+    })
+  } catch (error) {
+    console.error("Error in getUserProfile:", error)
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving user",
+    })
+  }
+}
+
+// Update user profile
+updateUserProfile = async (req, res) => {
+  try {
+    const { name, profilePicture, contactInfo } = req.body
+
+    // Find the user
+    const user = await User.findById(req.user._id)
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      })
+    }
+
+    // Update fields
+    if (name) user.name = name
+    if (profilePicture !== undefined) user.profilePicture = profilePicture
+    if (contactInfo) {
+      user.contactInfo = {
+        ...user.contactInfo,
+        ...contactInfo,
+      }
+    }
+
+    // Save the updated user
+    await user.save()
+
+    // Return the updated user without password
+    const updatedUser = await User.findById(user._id).select("-password")
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: updatedUser,
+      },
+    })
+  } catch (error) {
+    console.error("Error in updateUserProfile:", error)
+    res.status(500).json({
+      success: false,
+      message: "Error updating user profile",
+    })
+  }
+}
+
   /**
    * Get all users
    * @param {Object} req - Express request object
@@ -143,6 +219,56 @@ class UserController {
       );
     }
   }
+
+  // In user.controller.js
+changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required"
+      });
+    }
+    
+    // Get user with password
+    const user = await User.findById(req.user.id).select("+password");
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+    
+    // Check if current password matches
+    const isMatch = await user.matchPassword(currentPassword);
+    
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect"
+      });
+    }
+    
+    // Set and hash new password
+    user.password = newPassword;
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully"
+    });
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error changing password"
+    });
+  }
+};
 }
 
 module.exports = new UserController();

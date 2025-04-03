@@ -1,25 +1,33 @@
-// Project routes
-const express = require('express');
-const projectController = require('../controllers/project.controller');
-const { validate } = require('../middleware/validation.middleware');
-const { projectValidation } = require('../utils/validators');
-const { verifyToken, verifyProjectManager } = require('../middleware/auth.middleware');
+const express = require("express")
+const router = express.Router()
+const projectController = require("../controllers/project.controller")
+const { verifyToken } = require("../middleware/auth.middleware")
+const {validateProject} = require("../middleware/validation.middleware")
 
-const router = express.Router();
 
-// Create a new project (project manager or admin only)
-router.post('/', verifyToken, verifyProjectManager, validate(projectValidation.create), projectController.createProject);
-
-// Get all projects
-router.get('/', verifyToken, projectController.getAllProjects);
+// Get all projects for the authenticated user
+router.get("/", verifyToken, projectController.getAllProjects)
 
 // Get project by ID
-router.get('/:id', verifyToken, projectController.getProjectById);
+router.get("/:projectId", verifyToken, projectController.getProjectById)
 
-// Update project
-router.put('/:id', verifyToken, validate(projectValidation.update), projectController.updateProject);
+// Create a new project
+router.post("/", verifyToken, validateProject, projectController.createProject)
 
-// Delete project
-router.delete('/:id', verifyToken, projectController.deleteProject);
+// Update a project
+router.put("/:projectId", verifyToken, projectController.updateProject)
 
-module.exports = router;
+// Delete a project
+router.delete("/:projectId", verifyToken, projectController.deleteProject)
+
+// Add a member to a project
+router.post("/:projectId/members", verifyToken, projectController.addMember)
+
+// Remove a member from a project
+router.delete("/:projectId/members/:userId", verifyToken, projectController.removeMember)
+
+// Get project statistics
+router.get("/:projectId/stats", verifyToken, projectController.getProjectStats)
+
+module.exports = router
+

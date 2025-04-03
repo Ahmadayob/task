@@ -34,6 +34,35 @@ class TaskService {
     }
   }
 
+  Future<List<Task>> getAllTasks(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/api/tasks'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final tasksData = responseData['data']['tasks'] as List<dynamic>;
+        return tasksData.map((json) => Task.fromJson(json)).toList();
+      } else {
+        throw ApiException(
+          message: responseData['message'] ?? 'Failed to load tasks',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) {
+        rethrow;
+      }
+      throw ApiException(message: e.toString());
+    }
+  }
+
   Future<Task> getTaskById(String token, String taskId) async {
     try {
       final response = await http.get(

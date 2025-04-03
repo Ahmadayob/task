@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/widgets/social_icon.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/core/providers/auth_provider.dart';
 import 'package:frontend/screens/home/home_screen.dart';
@@ -52,7 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      appBar: AppBar(title: const Text('')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -185,6 +186,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: _register,
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    'or continue with',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialButton(
+                    context,
+                    provider: 'Facebook',
+                    text: 'Continue with Facebook',
+                    onTap: () {
+                      // Implement Facebook login
+                      _showSocialLoginNotImplemented(context, 'Facebook');
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialButton(
+                    context,
+                    provider: 'Google',
+                    text: 'Continue with Google',
+                    onTap: () {
+                      // Implement Google login
+                      _showSocialLoginNotImplemented(context, 'Google');
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialButton(
+                    context,
+                    provider: 'Apple',
+                    text: 'Continue with Apple',
+                    onTap: () {
+                      // Implement Apple login
+                      _showSocialLoginNotImplemented(context, 'Apple');
+                    },
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -208,4 +244,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+}
+
+Widget _buildSocialButton(
+  BuildContext context, {
+  required String provider,
+  required String text,
+  required VoidCallback onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SocialIcon(provider: provider),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showSocialLoginNotImplemented(BuildContext context, String provider) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('$provider login is not implemented yet'),
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }

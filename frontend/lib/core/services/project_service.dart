@@ -19,11 +19,35 @@ class ProjectService {
         },
       );
 
+      // Debug print
+      print('getAllProjects response status: ${response.statusCode}');
+      print('getAllProjects response body: ${response.body}');
+
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final projectsData = responseData['data']['projects'] as List<dynamic>;
-        return projectsData.map((json) => Project.fromJson(json)).toList();
+        try {
+          final projectsData =
+              responseData['data']['projects'] as List<dynamic>;
+
+          // Process each project individually to catch parsing errors
+          List<Project> projects = [];
+          for (var projectJson in projectsData) {
+            try {
+              projects.add(Project.fromJson(projectJson));
+            } catch (e) {
+              print('Error parsing individual project: $e');
+              print('Project JSON: $projectJson');
+              // Continue with next project instead of failing the whole list
+            }
+          }
+
+          return projects;
+        } catch (e) {
+          print('Error parsing projects list: $e');
+          print('Response data: $responseData');
+          throw ApiException(message: 'Failed to parse projects data: $e');
+        }
       } else {
         throw ApiException(
           message: responseData['message'] ?? 'Failed to load projects',
@@ -31,6 +55,7 @@ class ProjectService {
         );
       }
     } catch (e) {
+      print('Error in getAllProjects: $e');
       if (e is ApiException) {
         rethrow;
       }
@@ -71,6 +96,9 @@ class ProjectService {
     Map<String, dynamic> projectData,
   ) async {
     try {
+      // Debug print
+      print('createProject data: $projectData');
+
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}/api/projects'),
         headers: {
@@ -80,10 +108,19 @@ class ProjectService {
         body: jsonEncode(projectData),
       );
 
+      // Debug print
+      print('createProject response status: ${response.statusCode}');
+      print('createProject response body: ${response.body}');
+
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        return Project.fromJson(responseData['data']['project']);
+        try {
+          return Project.fromJson(responseData['data']['project']);
+        } catch (e) {
+          print('Error parsing project: $e');
+          throw ApiException(message: 'Failed to parse project data: $e');
+        }
       } else {
         throw ApiException(
           message: responseData['message'] ?? 'Failed to create project',
@@ -91,6 +128,7 @@ class ProjectService {
         );
       }
     } catch (e) {
+      print('Error in createProject: $e');
       if (e is ApiException) {
         rethrow;
       }

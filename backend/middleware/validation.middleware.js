@@ -23,3 +23,28 @@ exports.validate = (schema) => (req, res, next) => {
     return ApiResponse.error(res, 'Server error', 500);
   }
 };
+
+// Validation middleware for project creation/update
+exports.validateProject = (req, res, next) => {
+  try {
+    const { title } = req.body
+
+    // Validate title
+    if (!title || title.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Project title is required",
+      })
+    }
+
+    // If all validations pass
+    next()
+  } catch (error) {
+    console.error("Validation middleware error:", error)
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    })
+  }
+}
+

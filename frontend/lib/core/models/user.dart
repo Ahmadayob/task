@@ -20,18 +20,79 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // Debug print
+    print('Parsing user from JSON: $json');
+
+    // Handle empty or null JSON
+    if (json == null || json.isEmpty) {
+      return User(
+        id: '',
+        name: '',
+        email: '',
+        role: 'user',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    // Handle different ID field names
+    String userId = '';
+    if (json['_id'] != null) {
+      userId = json['_id'];
+    } else if (json['id'] != null) {
+      userId = json['id'];
+    }
+
+    // Handle date fields that might be strings or DateTime objects
+    DateTime createdAt;
+    if (json['createdAt'] is String) {
+      try {
+        createdAt = DateTime.parse(json['createdAt']);
+      } catch (e) {
+        createdAt = DateTime.now(); // Default if parsing fails
+      }
+    } else if (json['createdAt'] is DateTime) {
+      createdAt = json['createdAt'];
+    } else {
+      createdAt = DateTime.now(); // Default if missing
+    }
+
+    DateTime updatedAt;
+    if (json['updatedAt'] is String) {
+      try {
+        updatedAt = DateTime.parse(json['updatedAt']);
+      } catch (e) {
+        updatedAt = DateTime.now(); // Default if parsing fails
+      }
+    } else if (json['updatedAt'] is DateTime) {
+      updatedAt = json['updatedAt'];
+    } else {
+      updatedAt = DateTime.now(); // Default if missing
+    }
+
+    // Validate profile picture URL
+    String? profilePicture = json['profilePicture'];
+    if (profilePicture != null) {
+      // Check if it's a valid URL
+      if (profilePicture.isEmpty ||
+          profilePicture == 'file:///' ||
+          !profilePicture.startsWith('http')) {
+        profilePicture = null;
+      }
+    }
+
     return User(
-      id: json['_id'],
-      name: json['name'],
-      email: json['email'],
-      role: json['role'],
-      profilePicture: json['profilePicture'],
+      id: userId,
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      role: json['role'] ?? 'user',
+      profilePicture: profilePicture,
       contactInfo:
           json['contactInfo'] != null
               ? ContactInfo.fromJson(json['contactInfo'])
               : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 

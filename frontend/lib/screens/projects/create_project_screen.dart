@@ -49,12 +49,17 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
           'status': _status,
         };
 
+        // Debug print
+        print('Creating project with data: $projectData');
+        print('Using token: $token');
+
         await _projectService.createProject(token, projectData);
 
         if (mounted) {
           Navigator.of(context).pop(true);
         }
       } catch (e) {
+        print('Error creating project: $e');
         setState(() {
           _error = e.toString();
         });

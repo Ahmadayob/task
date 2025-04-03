@@ -1,34 +1,34 @@
-// Task routes
-const express = require('express');
-const taskController = require('../controllers/task.controller');
-const { validate } = require('../middleware/validation.middleware');
-const { taskValidation } = require('../utils/validators');
-const { verifyToken } = require('../middleware/auth.middleware');
+const express = require("express")
+const router = express.Router()
+const taskController = require("../controllers/task.controller")
+const authMiddleware = require("../middleware/auth.middleware")
 
-const router = express.Router();
+// Get all tasks for the authenticated user
+router.get("/", authMiddleware.protect, taskController.getAllTasks)
 
-// Create a new task
-router.post('/', verifyToken, validate(taskValidation.create), taskController.createTask);
+// Get tasks by board
+router.get("/board/:boardId", authMiddleware.protect, taskController.getTasksByBoard)
 
-// Get all tasks for a board
-router.get('/board/:boardId',  taskController.createTask);
-
-// Get all tasks for a board
-router.get('/board/:boardId', verifyToken, taskController.getTasksByBoard);
+// Get task statistics for a project
+router.get("/stats/project/:projectId", authMiddleware.protect, taskController.getTaskStatsByProject)
 
 // Get task by ID
-router.get('/:id', verifyToken, taskController.getTaskById);
+router.get("/:taskId", authMiddleware.protect, taskController.getTaskById)
 
-// Update task
-router.put('/:id', verifyToken, validate(taskValidation.update), taskController.updateTask);
+// Create a new task
+router.post("/", authMiddleware.protect, taskController.createTask)
 
-// Delete task
-router.delete('/:id', verifyToken, taskController.deleteTask);
+// Update a task
+router.put("/:taskId", authMiddleware.protect, taskController.updateTask)
 
-// Move task to another board
-router.post('/:id/move', verifyToken, taskController.moveTask);
+// Delete a task
+router.delete("/:taskId", authMiddleware.protect, taskController.deleteTask)
 
-// Reorder tasks
-router.post('/board/:boardId/reorder', verifyToken, taskController.reorderTasks);
+// Move a task to another board
+router.patch("/:taskId/move", authMiddleware.protect, taskController.moveTask)
 
-module.exports = router;
+// Reorder tasks within a board
+router.patch("/board/:boardId/reorder", authMiddleware.protect, taskController.reorderTasks)
+
+module.exports = router
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_colors.dart';
+import 'package:frontend/widgets/social_icon.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/core/providers/auth_provider.dart';
 import 'package:frontend/screens/auth/register_screen.dart';
@@ -58,31 +59,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Replace Image.asset with a Container showing an app icon
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.task_alt,
-                      size: 50,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
                   Text(
                     'Welcome Back',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.left,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Sign in to continue',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18),
+                    textAlign: TextAlign.left,
                   ),
                   const SizedBox(height: 32),
                   CustomTextField(
@@ -150,6 +137,41 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _login,
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    'or continue with',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialButton(
+                    context,
+                    provider: 'Facebook',
+                    text: 'Continue with Facebook',
+                    onTap: () {
+                      // Implement Facebook login
+                      _showSocialLoginNotImplemented(context, 'Facebook');
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialButton(
+                    context,
+                    provider: 'Google',
+                    text: 'Continue with Google',
+                    onTap: () {
+                      // Implement Google login
+                      _showSocialLoginNotImplemented(context, 'Google');
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialButton(
+                    context,
+                    provider: 'Apple',
+                    text: 'Continue with Apple',
+                    onTap: () {
+                      // Implement Apple login
+                      _showSocialLoginNotImplemented(context, 'Apple');
+                    },
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -177,4 +199,42 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+
+Widget _buildSocialButton(
+  BuildContext context, {
+  required String provider,
+  required String text,
+  required VoidCallback onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SocialIcon(provider: provider),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showSocialLoginNotImplemented(BuildContext context, String provider) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('$provider login is not implemented yet'),
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }

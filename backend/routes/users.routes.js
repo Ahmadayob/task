@@ -25,4 +25,9 @@ router.delete('/:id', verifyToken, verifyAdmin, userController.deleteUser);
 // Change user role (admin only)
 router.patch('/:id/role', verifyToken, verifyAdmin, userController.changeUserRole);
 
+// Change password
+router.put("/change-password", verifyToken, userController.changePassword)
+
+
+
 module.exports = router;

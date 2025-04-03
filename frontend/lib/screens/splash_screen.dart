@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/theme/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/core/providers/auth_provider.dart';
-import 'package:frontend/screens/auth/login_screen.dart';
+import 'package:frontend/screens/auth/onboarding_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
+import 'package:frontend/core/theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -54,9 +54,9 @@ class _SplashScreenState extends State<SplashScreen> {
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } else {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
     }
   }
 
