@@ -19,8 +19,19 @@ class AuthProvider extends ChangeNotifier {
 
   final AuthService _authService = AuthService();
 
+  // This future will complete when initialization is done
+  Future<void>? _initFuture;
+
   AuthProvider() {
-    _loadUserData();
+    // Store the future so we can await it elsewhere
+    _initFuture = _loadUserData();
+  }
+
+  // Public method to await initialization
+  Future<void> ensureInitialized() async {
+    if (_initFuture != null) {
+      await _initFuture;
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -28,12 +39,25 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
+
       if (token != null && token.isNotEmpty) {
         _token = token;
-        await _fetchUserProfile();
+        try {
+          await _fetchUserProfile();
+          // If we get here, the token is valid and we have a user
+          print('User loaded successfully from stored token');
+        } catch (e) {
+          // If fetching the user profile fails, the token is likely invalid
+          print('Failed to load user profile: $e');
+          _token = null;
+          await prefs.remove('token');
+        }
+      } else {
+        print('No token found in storage');
       }
     } catch (e) {
       _setError(e.toString());
+      print('Error loading user data: $e');
     } finally {
       _setLoading(false);
       _isInitialized = true;
@@ -104,20 +128,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _fetchUserProfile() async {
-    try {
-      if (_token == null) return;
+    if (_token == null) return;
 
-      final userData = await _authService.getCurrentUser(_token!);
-      _user = User.fromJson(userData);
-      notifyListeners();
-    } catch (e) {
-      _setError(e.toString());
-      // If we can't fetch the user profile, the token might be invalid
-      _token = null;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token');
-      notifyListeners();
-    }
+    final userData = await _authService.getCurrentUser(_token!);
+    _user = User.fromJson(userData);
+    notifyListeners();
   }
 
   void _setLoading(bool loading) {

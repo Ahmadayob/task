@@ -9,11 +9,11 @@ class NotificationItem extends StatelessWidget {
   final VoidCallback onDismiss;
 
   const NotificationItem({
-    Key? key,
+    super.key,
     required this.notification,
     required this.onTap,
     required this.onDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

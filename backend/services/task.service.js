@@ -2,94 +2,33 @@
 const Task = require("../models/task.model")
 const Board = require("../models/board.model")
 const ActivityLog = require("../models/activityLog.model")
-const Notification = require("../models/notification.model")
 const logger = require("../utils/logger")
 
 class TaskService {
   /**
-   * Create a new task
-   * @param {Object} taskData - Task data
-   * @param {string} userId - Creator user ID
-   * @returns {Object} - Newly created task
+   * Get all tasks for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<Array>} - Array of tasks
    */
-  async createTask(taskData, userId) {
+  async getAllTasks(userId) {
     try {
-      // Check if board exists
-      const board = await Board.findById(taskData.board)
-      if (!board) {
-        throw new Error("Board not found")
-      }
+      // Find all tasks where the user is an assignee
+      const tasks = await Task.find({ assignees: userId })
+        .populate("assignees", "name email profilePicture")
+        .populate("board", "title project")
+        .sort({ createdAt: -1 })
 
-      // Get the highest order value for existing tasks in this board
-      const highestOrderTask = await Task.findOne({ board: taskData.board }).sort({ order: -1 })
-
-      const order = highestOrderTask ? highestOrderTask.order + 1 : 0
-
-      // Create the task
-      const task = new Task({
-        ...taskData,
-        order,
-      })
-
-      await task.save()
-
-      // Create activity log
-      await ActivityLog.create({
-        user: userId,
-        action: "Created task",
-        details: `Task "${task.title}" was created in board "${board.title}"`,
-        relatedItem: {
-          itemId: task._id,
-          itemType: "Task",
-        },
-      })
-
-      // Create notifications for assignees
-      try {
-        if (taskData.assignees && taskData.assignees.length > 0) {
-          const notificationPromises = taskData.assignees
-            .map(async (assigneeId) => {
-              // Don't notify the creator if they're also an assignee
-              if (assigneeId.toString() === userId.toString()) return null
-
-              try {
-                return await Notification.create({
-                  recipient: assigneeId,
-                  sender: userId,
-                  message: `You have been assigned to task "${task.title}"`,
-                  relatedItem: {
-                    itemId: task._id,
-                    itemType: "Task",
-                  },
-                  isRead: false,
-                })
-              } catch (notifError) {
-                logger.error(
-                  `Error creating task assignment notification for assignee ${assigneeId}: ${notifError.message}`,
-                )
-                return null
-              }
-            })
-            .filter(Boolean)
-
-          await Promise.all(notificationPromises)
-        }
-      } catch (notificationError) {
-        logger.error(`Error creating task assignment notifications: ${notificationError.message}`)
-        // Continue execution even if notification creation fails
-      }
-
-      return task
+      return tasks
     } catch (error) {
-      logger.error(`Error creating task: ${error.message}`)
+      logger.error(`Error getting all tasks: ${error.message}`)
       throw error
     }
   }
 
   /**
-   * Get all tasks for a board
+   * Get tasks by board
    * @param {string} boardId - Board ID
-   * @returns {Array} - List of tasks
+   * @returns {Promise<Array>} - Array of tasks
    */
   async getTasksByBoard(boardId) {
     try {
@@ -99,7 +38,7 @@ class TaskService {
         throw new Error("Board not found")
       }
 
-      // Get all tasks for the board
+      // Find all tasks for the board
       const tasks = await Task.find({ board: boardId })
         .populate("assignees", "name email profilePicture")
         .sort({ order: 1 })
@@ -114,11 +53,13 @@ class TaskService {
   /**
    * Get task by ID
    * @param {string} taskId - Task ID
-   * @returns {Object} - Task data
+   * @returns {Promise<Object>} - Task object
    */
   async getTaskById(taskId) {
     try {
-      const task = await Task.findById(taskId).populate("assignees", "name email profilePicture")
+      const task = await Task.findById(taskId)
+        .populate("assignees", "name email profilePicture")
+        .populate("board", "title project")
 
       if (!task) {
         throw new Error("Task not found")
@@ -132,80 +73,88 @@ class TaskService {
   }
 
   /**
-   * Update task
-   * @param {string} taskId - Task ID
-   * @param {Object} updateData - Data to update
-   * @param {string} userId - User ID making the update
-   * @returns {Object} - Updated task
+   * Create a new task
+   * @param {Object} taskData - Task data
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} - Created task
    */
-  async updateTask(taskId, updateData, userId) {
+  async createTask(taskData, userId) {
     try {
-      const task = await Task.findById(taskId).populate("assignees", "name email profilePicture")
+      // Get the highest order value for tasks in this board
+      const highestOrderTask = await Task.findOne({ board: taskData.board }).sort({ order: -1 })
 
-      if (!task) {
-        throw new Error("Task not found")
-      }
+      const newOrder = highestOrderTask ? highestOrderTask.order + 1 : 0
 
-      // Store old assignees for notification
-      const oldAssignees = task.assignees.map((assignee) => assignee._id.toString())
+      // Create task with the next order value
+      const task = await Task.create({
+        ...taskData,
+        order: newOrder,
+        createdBy: userId,
+      })
 
-      // Update the task
-      const updatedTask = await Task.findByIdAndUpdate(taskId, updateData, { new: true, runValidators: true }).populate(
-        "assignees",
-        "name email profilePicture",
-      )
+      // Populate assignees
+      await task.populate("assignees", "name email profilePicture")
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Updated task",
-        details: `Task "${task.title}" was updated`,
+        action: "Task created",
+        details: `Task "${task.title}" created`,
         relatedItem: {
           itemId: task._id,
           itemType: "Task",
         },
+        board: task.board,
       })
 
-      // Create notifications for new assignees
-      try {
-        if (updateData.assignees) {
-          const newAssignees = updateData.assignees.filter(
-            (assigneeId) => !oldAssignees.includes(assigneeId.toString()),
-          )
+      return task
+    } catch (error) {
+      logger.error(`Error creating task: ${error.message}`)
+      throw error
+    }
+  }
 
-          const notificationPromises = newAssignees
-            .map(async (assigneeId) => {
-              // Don't notify the updater if they're also a new assignee
-              if (assigneeId.toString() === userId.toString()) return null
-
-              try {
-                return await Notification.create({
-                  recipient: assigneeId,
-                  sender: userId,
-                  message: `You have been assigned to task "${task.title}"`,
-                  relatedItem: {
-                    itemId: task._id,
-                    itemType: "Task",
-                  },
-                  isRead: false,
-                })
-              } catch (notifError) {
-                logger.error(
-                  `Error creating task assignment notification for new assignee ${assigneeId}: ${notifError.message}`,
-                )
-                return null
-              }
-            })
-            .filter(Boolean)
-
-          await Promise.all(notificationPromises)
-        }
-      } catch (notificationError) {
-        logger.error(`Error creating task update notifications: ${notificationError.message}`)
-        // Continue execution even if notification creation fails
+  /**
+   * Update a task
+   * @param {string} taskId - Task ID
+   * @param {Object} updateData - Data to update
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} - Updated task
+   */
+  async updateTask(taskId, updateData, userId) {
+    try {
+      // Find task
+      const task = await Task.findById(taskId)
+      if (!task) {
+        throw new Error("Task not found")
       }
 
-      return updatedTask
+      // Update task fields
+      Object.keys(updateData).forEach((key) => {
+        if (key !== "board" && key !== "order") {
+          // Don't allow changing board or order directly
+          task[key] = updateData[key]
+        }
+      })
+
+      await task.save()
+
+      // Populate assignees
+      await task.populate("assignees", "name email profilePicture")
+
+      // Create activity log
+      await ActivityLog.create({
+        user: userId,
+        action: "Task updated",
+        details: `Task "${task.title}" updated`,
+        relatedItem: {
+          itemId: task._id,
+          itemType: "Task",
+        },
+        board: task.board,
+      })
+
+      return task
     } catch (error) {
       logger.error(`Error updating task: ${error.message}`)
       throw error
@@ -213,32 +162,44 @@ class TaskService {
   }
 
   /**
-   * Delete task
+   * Delete a task
    * @param {string} taskId - Task ID
-   * @param {string} userId - User ID making the deletion
-   * @returns {boolean} - Success status
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} - Success status
    */
   async deleteTask(taskId, userId) {
     try {
+      // Find task
       const task = await Task.findById(taskId)
-
       if (!task) {
         throw new Error("Task not found")
       }
 
-      // Delete the task
-      await Task.findByIdAndDelete(taskId)
+      const boardId = task.board
+      const taskTitle = task.title
+
+      // Delete task
+      await task.deleteOne()
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Deleted task",
-        details: `Task "${task.title}" was deleted`,
+        action: "Task deleted",
+        details: `Task "${taskTitle}" deleted`,
         relatedItem: {
-          itemId: task._id,
+          itemId: taskId,
           itemType: "Task",
         },
+        board: boardId,
       })
+
+      // Reorder remaining tasks
+      const remainingTasks = await Task.find({ board: boardId }).sort({ order: 1 })
+
+      for (let i = 0; i < remainingTasks.length; i++) {
+        remainingTasks[i].order = i
+        await remainingTasks[i].save()
+      }
 
       return true
     } catch (error) {
@@ -248,16 +209,16 @@ class TaskService {
   }
 
   /**
-   * Move task to another board
+   * Move a task to another board
    * @param {string} taskId - Task ID
    * @param {string} targetBoardId - Target board ID
-   * @param {string} userId - User ID making the move
-   * @returns {Object} - Updated task
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} - Moved task
    */
   async moveTask(taskId, targetBoardId, userId) {
     try {
+      // Find task
       const task = await Task.findById(taskId)
-
       if (!task) {
         throw new Error("Task not found")
       }
@@ -268,30 +229,44 @@ class TaskService {
         throw new Error("Target board not found")
       }
 
-      // Get the highest order value for existing tasks in the target board
+      const sourceBoardId = task.board
+
+      // Get the highest order value for tasks in the target board
       const highestOrderTask = await Task.findOne({ board: targetBoardId }).sort({ order: -1 })
 
-      const order = highestOrderTask ? highestOrderTask.order + 1 : 0
+      const newOrder = highestOrderTask ? highestOrderTask.order + 1 : 0
 
-      // Update the task
-      const updatedTask = await Task.findByIdAndUpdate(
-        taskId,
-        { board: targetBoardId, order },
-        { new: true, runValidators: true },
-      ).populate("assignees", "name email profilePicture")
+      // Update task
+      task.board = targetBoardId
+      task.order = newOrder
+      await task.save()
+
+      // Populate assignees
+      await task.populate("assignees", "name email profilePicture")
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Moved task",
-        details: `Task "${task.title}" was moved to board "${targetBoard.title}"`,
+        action: "Task moved",
+        details: `Task "${task.title}" moved to another board`,
         relatedItem: {
           itemId: task._id,
           itemType: "Task",
         },
+        board: targetBoardId,
       })
 
-      return updatedTask
+      // Reorder tasks in the source board
+      if (sourceBoardId.toString() !== targetBoardId.toString()) {
+        const sourceBoardTasks = await Task.find({ board: sourceBoardId }).sort({ order: 1 })
+
+        for (let i = 0; i < sourceBoardTasks.length; i++) {
+          sourceBoardTasks[i].order = i
+          await sourceBoardTasks[i].save()
+        }
+      }
+
+      return task
     } catch (error) {
       logger.error(`Error moving task: ${error.message}`)
       throw error
@@ -299,11 +274,11 @@ class TaskService {
   }
 
   /**
-   * Reorder tasks
+   * Reorder tasks within a board
    * @param {string} boardId - Board ID
-   * @param {Array} taskOrders - Array of {id, order} objects
-   * @param {string} userId - User ID making the update
-   * @returns {Array} - Updated tasks
+   * @param {Array} taskOrders - Array of task IDs and their new orders
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} - Success status
    */
   async reorderTasks(boardId, taskOrders, userId) {
     try {
@@ -313,31 +288,89 @@ class TaskService {
         throw new Error("Board not found")
       }
 
-      // Update each task's order
-      const updatePromises = taskOrders.map(({ id, order }) =>
-        Task.findByIdAndUpdate(id, { order }, { new: true }).populate("assignees", "name email profilePicture"),
-      )
+      // Update order for each task
+      for (const taskOrder of taskOrders) {
+        const { taskId, order } = taskOrder
 
-      const updatedTasks = await Promise.all(updatePromises)
+        const task = await Task.findById(taskId)
+        if (task && task.board.toString() === boardId) {
+          task.order = order
+          await task.save()
+        }
+      }
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Reordered tasks",
-        details: `Tasks in board "${board.title}" were reordered`,
+        action: "Tasks reordered",
+        details: "Tasks reordered in board",
         relatedItem: {
-          itemId: board._id,
+          itemId: boardId,
           itemType: "Board",
         },
+        board: boardId,
       })
 
-      return updatedTasks
+      return true
     } catch (error) {
       logger.error(`Error reordering tasks: ${error.message}`)
+      throw error
+    }
+  }
+
+  /**
+   * Get task statistics for a project
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Object>} - Task statistics
+   */
+  async getTaskStatsByProject(projectId) {
+    try {
+      // Get all boards for the project
+      const boards = await Board.find({ project: projectId })
+
+      if (boards.length === 0) {
+        return {
+          totalTasks: 0,
+          completedTasks: 0,
+          progressPercentage: 0,
+          tasksByStatus: {
+            todo: 0,
+            inProgress: 0,
+            inReview: 0,
+            done: 0,
+          },
+        }
+      }
+
+      const boardIds = boards.map((board) => board._id)
+
+      // Get all tasks for the boards
+      const tasks = await Task.find({ board: { $in: boardIds } })
+
+      // Calculate statistics
+      const totalTasks = tasks.length
+      const completedTasks = tasks.filter((task) => task.status === "Done").length
+      const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+
+      // Count tasks by status
+      const tasksByStatus = {
+        todo: tasks.filter((task) => task.status === "To Do").length,
+        inProgress: tasks.filter((task) => task.status === "In Progress").length,
+        inReview: tasks.filter((task) => task.status === "In Review").length,
+        done: completedTasks,
+      }
+
+      return {
+        totalTasks,
+        completedTasks,
+        progressPercentage,
+        tasksByStatus,
+      }
+    } catch (error) {
+      logger.error(`Error getting task statistics: ${error.message}`)
       throw error
     }
   }
 }
 
 module.exports = new TaskService()
-

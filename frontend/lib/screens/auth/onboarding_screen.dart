@@ -6,7 +6,7 @@ import 'package:frontend/widgets/custom_button.dart';
 import 'package:frontend/widgets/social_icon.dart';
 
 class OnboardingScreen extends StatelessWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  const OnboardingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

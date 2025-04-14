@@ -6,8 +6,7 @@ class BoardCard extends StatelessWidget {
   final Board board;
   final VoidCallback onTap;
 
-  const BoardCard({Key? key, required this.board, required this.onTap})
-    : super(key: key);
+  const BoardCard({super.key, required this.board, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -52,13 +51,13 @@ class BoardCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        Icons.access_time,
+                        Icons.folder,
                         size: 16,
                         color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Created: ${_formatDate(board.createdAt)}',
+                        board.projectTitle ?? 'No project',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],

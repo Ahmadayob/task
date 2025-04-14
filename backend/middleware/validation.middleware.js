@@ -1,7 +1,31 @@
 // Validation middleware
 const ApiResponse = require('../utils/apiResponse');
 const logger = require('../utils/logger');
+const Joi = require("joi")
 
+/**
+ * Validate request body against a Joi schema
+ * @param {Joi.Schema} schema - Joi schema to validate against
+ * @returns {Function} - Express middleware function
+ */
+exports.validate = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.body, { abortEarly: false })
+
+    if (error) {
+      const errorMessage = error.details.map((detail) => detail.message).join(", ")
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${errorMessage}`,
+        errors: error.details,
+      })
+    }
+
+    next()
+  }
+}
+
+// Project validation middleware (for backward compatibility)
 /**
  * Validate request data against schema
  * @param {Object} schema - Joi schema

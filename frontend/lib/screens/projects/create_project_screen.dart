@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:frontend/core/models/user.dart';
 import 'package:frontend/core/providers/auth_provider.dart';
 import 'package:frontend/core/services/project_service.dart';
 import 'package:frontend/widgets/custom_button.dart';
 import 'package:frontend/widgets/custom_text_field.dart';
+import 'package:frontend/widgets/member_selection.dart';
+import 'package:provider/provider.dart';
 
 class CreateProjectScreen extends StatefulWidget {
-  const CreateProjectScreen({Key? key}) : super(key: key);
+  const CreateProjectScreen({super.key});
 
   @override
   State<CreateProjectScreen> createState() => _CreateProjectScreenState();
@@ -18,11 +20,22 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   final _descriptionController = TextEditingController();
   DateTime? _deadline;
   String _status = 'Planning';
+  List<User> _selectedMembers = [];
 
   bool _isLoading = false;
   String? _error;
 
   final ProjectService _projectService = ProjectService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Add current user as a member by default
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null) {
+      _selectedMembers = [authProvider.user!];
+    }
+  }
 
   @override
   void dispose() {
@@ -47,6 +60,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
           'description': _descriptionController.text.trim(),
           'deadline': _deadline?.toIso8601String(),
           'status': _status,
+          'members': _selectedMembers.map((member) => member.id).toList(),
         };
 
         // Debug print
@@ -201,6 +215,20 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                         },
                       ),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: MemberSelection(
+                    selectedMembers: _selectedMembers,
+                    onMembersChanged: (members) {
+                      setState(() {
+                        _selectedMembers = members;
+                      });
+                    },
                   ),
                 ),
               ),

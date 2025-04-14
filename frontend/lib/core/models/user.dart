@@ -24,7 +24,7 @@ class User {
     print('Parsing user from JSON: $json');
 
     // Handle empty or null JSON
-    if (json == null || json.isEmpty) {
+    if (json.isEmpty) {
       return User(
         id: '',
         name: '',

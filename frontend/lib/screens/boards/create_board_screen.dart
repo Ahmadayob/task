@@ -8,8 +8,7 @@ import 'package:frontend/widgets/custom_text_field.dart';
 class CreateBoardScreen extends StatefulWidget {
   final String projectId;
 
-  const CreateBoardScreen({Key? key, required this.projectId})
-    : super(key: key);
+  const CreateBoardScreen({super.key, required this.projectId});
 
   @override
   State<CreateBoardScreen> createState() => _CreateBoardScreenState();
@@ -18,11 +17,17 @@ class CreateBoardScreen extends StatefulWidget {
 class _CreateBoardScreenState extends State<CreateBoardScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  String _status = 'todo';
 
   bool _isLoading = false;
   String? _error;
 
   final BoardService _boardService = BoardService();
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -44,6 +49,7 @@ class _CreateBoardScreenState extends State<CreateBoardScreen> {
         final boardData = {
           'title': _titleController.text.trim(),
           'project': widget.projectId,
+          'status': _status,
         };
 
         await _boardService.createBoard(token, boardData);
@@ -88,6 +94,47 @@ class _CreateBoardScreenState extends State<CreateBoardScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Status',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _status,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'todo', child: Text('To Do')),
+                          DropdownMenuItem(
+                            value: 'in_progress',
+                            child: Text('In Progress'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'review',
+                            child: Text('Review'),
+                          ),
+                          DropdownMenuItem(value: 'done', child: Text('Done')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _status = value;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               if (_error != null)

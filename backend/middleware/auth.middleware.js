@@ -1,12 +1,8 @@
-// Authentication middleware
-const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../config/env');
-const User = require('../models/user.model');
-const ApiResponse = require('../utils/apiResponse');
-const logger = require('../utils/logger');
+const jwt = require("jsonwebtoken")
+const User = require("../models/user.model")
 
-// Add the verifyToken function that's being used in your routes
-const verifyToken = async (req, res, next) => {
+// Protect routes - Authentication middleware
+exports.protect = async (req, res, next) => {
   try {
     let token
 
@@ -26,11 +22,13 @@ const verifyToken = async (req, res, next) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET)
-      console.log("Decoded token:", decoded);
 
       // Get user from token
       req.user = await User.findById(decoded.id).select("-password")
-      console.log("Found user:", req.user ? req.user._id : "No user found")
+
+      // Add user ID and role to request for easier access
+      req.userId = req.user._id
+      req.userRole = req.user.role
 
       if (!req.user) {
         return res.status(401).json({
@@ -41,7 +39,6 @@ const verifyToken = async (req, res, next) => {
 
       next()
     } catch (error) {
-      console.error("Token verification error:", error)
       return res.status(401).json({
         success: false,
         message: "Not authorized to access this route",
@@ -56,28 +53,51 @@ const verifyToken = async (req, res, next) => {
   }
 }
 
-const verifyAdmin = async (req, res, next) => {
+// Add the verifyToken function that's being used in your routes
+exports.verifyToken = async (req, res, next) => {
   try {
-    // This middleware should be used after verifyToken
-    // so req.user should be available
-    if (!req.user) {
+    let token
+
+    // Check if token exists in headers
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1]
+    }
+
+    // Check if token exists
+    if (!token) {
       return res.status(401).json({
         success: false,
         message: "Not authorized to access this route",
       })
     }
 
-    // Check if user is an admin
-    if (req.user.role !== "Admin") {
-      return res.status(403).json({
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+      // Get user from token
+      req.user = await User.findById(decoded.id).select("-password")
+
+      // Add user ID and role to request for easier access
+      req.userId = req.user._id
+      req.userRole = req.user.role
+
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "User not found",
+        })
+      }
+
+      next()
+    } catch (error) {
+      return res.status(401).json({
         success: false,
         message: "Not authorized to access this route",
       })
     }
-
-    next()
   } catch (error) {
-    console.error("Token verification error in verifyToken:", error)
+    console.error("Auth middleware error:", error)
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -86,7 +106,7 @@ const verifyAdmin = async (req, res, next) => {
 }
 
 // Add the verifyProjectManager function that's mentioned in the error logs
-const verifyProjectManager = async (req, res, next) => {
+exports.verifyProjectManager = async (req, res, next) => {
   try {
     // This middleware should be used after verifyToken
     // so req.user should be available
@@ -109,9 +129,32 @@ const verifyProjectManager = async (req, res, next) => {
   }
 }
 
-module.exports = {
-  verifyToken,
-  verifyAdmin,
-  verifyProjectManager,
-  protect: verifyToken, 
-};
+// Add the verifyAdmin function that's mentioned in the error logs
+exports.verifyAdmin = async (req, res, next) => {
+  try {
+    // This middleware should be used after verifyToken
+    // so req.user should be available
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized to access this route",
+      })
+    }
+
+    // Check if the user is an admin
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to access this route",
+      })
+    }
+
+    next()
+  } catch (error) {
+    console.error("Auth middleware error:", error)
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    })
+  }
+}

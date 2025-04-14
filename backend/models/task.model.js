@@ -39,6 +39,28 @@ const taskSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  attachments: [{
+    name: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      required: true
+    },
+    url: {
+      type: String,
+      required: true
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  subtasks: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subtask'
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -51,14 +73,6 @@ const taskSchema = new mongoose.Schema({
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
-});
-
-// Virtual for subtasks
-taskSchema.virtual('subtasks', {
-  ref: 'Subtask',
-  localField: '_id',
-  foreignField: 'task',
-  justOne: false
 });
 
 module.exports = mongoose.model('Task', taskSchema);

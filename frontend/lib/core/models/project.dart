@@ -27,32 +27,93 @@ class Project {
 
   factory Project.fromJson(Map<String, dynamic> json) {
     // Add debug print to see what's coming from the API
-    print('Project.fromJson: $json');
+    // print('Project.fromJson: $json');
 
-    return Project(
-      id: json['_id'] ?? json['id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'],
-      manager: User.fromJson(json['manager'] ?? {}),
-      members:
-          (json['members'] as List<dynamic>? ?? [])
-              .map((member) => User.fromJson(member))
-              .toList(),
-      deadline:
-          json['deadline'] != null ? DateTime.parse(json['deadline']) : null,
-      status: json['status'] ?? 'Planning',
-      createdAt:
+    // Handle dates safely
+    DateTime? deadlineDate;
+    if (json['deadline'] != null) {
+      try {
+        deadlineDate = DateTime.parse(json['deadline']);
+      } catch (e) {
+        // print('Error parsing deadline: $e');
+      }
+    }
+
+    DateTime createdAtDate;
+    try {
+      createdAtDate =
           json['createdAt'] != null
               ? DateTime.parse(json['createdAt'])
-              : DateTime.now(),
-      updatedAt:
+              : DateTime.now();
+    } catch (e) {
+      // print('Error parsing createdAt: $e');
+      createdAtDate = DateTime.now();
+    }
+
+    DateTime updatedAtDate;
+    try {
+      updatedAtDate =
           json['updatedAt'] != null
-              ? DateTime.parse(json['updatedAt'] ?? '')
-              : DateTime.now(),
-      progress:
-          json['progress'] != null
-              ? ProjectProgress.fromJson(json['progress'])
-              : null,
+              ? DateTime.parse(json['updatedAt'])
+              : DateTime.now();
+    } catch (e) {
+      // print('Error parsing updatedAt: $e');
+      updatedAtDate = DateTime.now();
+    }
+
+    // Handle manager which might be null or invalid
+    User managerUser;
+    try {
+      managerUser = User.fromJson(json['manager'] ?? {});
+    } catch (e) {
+      // print('Error parsing manager: $e');
+      managerUser = User(
+        id: '',
+        name: 'Unknown Manager',
+        email: '',
+        role: 'Project Manager',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    // Handle members which might be null or invalid
+    List<User> membersList = [];
+    if (json['members'] != null) {
+      try {
+        membersList =
+            (json['members'] as List<dynamic>? ?? [])
+                .map((member) => User.fromJson(member))
+                .toList();
+      } catch (e) {
+        // print('Error parsing members: $e');
+      }
+    }
+
+    // Handle progress which might be null or invalid
+    ProjectProgress? progressData;
+    if (json['progress'] != null) {
+      try {
+        progressData = ProjectProgress.fromJson(json['progress']);
+      } catch (e) {
+        // print('Error parsing progress: $e');
+      }
+    }
+
+    return Project(
+      id:
+          json['_id'] ??
+          json['id'] ??
+          '', // Handle both _id and id, provide default
+      title: json['title'] ?? '', // Provide default empty string
+      description: json['description'], // Already nullable
+      manager: managerUser,
+      members: membersList,
+      deadline: deadlineDate,
+      status: json['status'] ?? 'Planning', // Provide default status
+      createdAt: createdAtDate,
+      updatedAt: updatedAtDate,
+      progress: progressData,
     );
   }
 
@@ -108,7 +169,7 @@ class ProjectProgress {
 
   factory ProjectProgress.fromJson(Map<String, dynamic> json) {
     // Debug print to see the progress data
-    print('ProjectProgress.fromJson: $json');
+    // print('ProjectProgress.fromJson: $json');
 
     // Handle the case where progressPercentage might be an int
     double parseProgressPercentage(dynamic value) {

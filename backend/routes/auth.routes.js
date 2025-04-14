@@ -1,19 +1,15 @@
-// Auth routes
-const express = require('express');
-const authController = require('../controllers/auth.controller');
-const { validate } = require('../middleware/validation.middleware');
-const { userValidation } = require('../utils/validators');
-const { verifyToken } = require('../middleware/auth.middleware');
-
-const router = express.Router();
+const express = require("express")
+const router = express.Router()
+const authController = require("../controllers/auth.controller")
 
 // Register a new user
-router.post('/register', validate(userValidation.register), authController.register);
+router.post("/register", authController.register)
 
-// Login a user
-router.post('/login', validate(userValidation.login), authController.login);
+// Login user
+router.post("/login", authController.login)
 
-// Logout a user
-router.post('/logout', verifyToken, authController.logout);
+// Logout user
+router.post("/logout", authController.logout)
 
-module.exports = router;
+module.exports = router
+

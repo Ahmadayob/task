@@ -1,4 +1,41 @@
+import 'package:flutter/material.dart';
 import 'package:frontend/core/models/user.dart';
+import 'package:frontend/core/models/subtask.dart';
+
+class Attachment {
+  final String name;
+  final String type;
+  final String url;
+  final DateTime uploadedAt;
+
+  Attachment({
+    required this.name,
+    required this.type,
+    required this.url,
+    required this.uploadedAt,
+  });
+
+  factory Attachment.fromJson(Map<String, dynamic> json) {
+    return Attachment(
+      name: json['name'] ?? '',
+      type: json['type'] ?? '',
+      url: json['url'] ?? '',
+      uploadedAt:
+          json['uploadedAt'] != null
+              ? DateTime.parse(json['uploadedAt'])
+              : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'type': type,
+      'url': url,
+      'uploadedAt': uploadedAt.toIso8601String(),
+    };
+  }
+}
 
 class Task {
   final String id;
@@ -10,6 +47,8 @@ class Task {
   final String status;
   final String priority;
   final int order;
+  final List<Attachment> attachments;
+  final List<Subtask> subtasks;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -23,27 +62,118 @@ class Task {
     required this.status,
     required this.priority,
     required this.order,
+    this.attachments = const [],
+    this.subtasks = const [],
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
+    // Handle board field which might be an object or a string
+    String boardId;
+    if (json['board'] is Map) {
+      boardId = json['board']['_id'] ?? '';
+    } else {
+      boardId = json['board']?.toString() ?? '';
+    }
+
+    // Handle assignees which might be a list of objects or IDs
+    List<User> assigneesList = [];
+    if (json['assignees'] != null) {
+      try {
+        assigneesList =
+            (json['assignees'] as List<dynamic>).map((assignee) {
+              if (assignee is Map<String, dynamic>) {
+                return User.fromJson(assignee);
+              } else {
+                // If it's just an ID, create a minimal user
+                return User(
+                  id: assignee.toString(),
+                  name: 'Unknown',
+                  email: '',
+                  role: 'Team Member',
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                );
+              }
+            }).toList();
+      } catch (e) {
+        debugPrint('Error parsing assignees: $e');
+      }
+    }
+
+    // Handle dates safely
+    DateTime? deadlineDate;
+    if (json['deadline'] != null) {
+      try {
+        deadlineDate = DateTime.parse(json['deadline']);
+      } catch (e) {
+        debugPrint('Error parsing deadline: $e');
+      }
+    }
+
+    DateTime createdAtDate;
+    try {
+      createdAtDate =
+          json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'])
+              : DateTime.now();
+    } catch (e) {
+      debugPrint('Error parsing createdAt: $e');
+      createdAtDate = DateTime.now();
+    }
+
+    DateTime updatedAtDate;
+    try {
+      updatedAtDate =
+          json['updatedAt'] != null
+              ? DateTime.parse(json['updatedAt'])
+              : DateTime.now();
+    } catch (e) {
+      debugPrint('Error parsing updatedAt: $e');
+      updatedAtDate = DateTime.now();
+    }
+
+    // Handle attachments safely
+    List<Attachment> attachmentsList = [];
+    if (json['attachments'] != null) {
+      try {
+        attachmentsList =
+            (json['attachments'] as List<dynamic>)
+                .map((attachment) => Attachment.fromJson(attachment))
+                .toList();
+      } catch (e) {
+        debugPrint('Error parsing attachments: $e');
+      }
+    }
+
+    // Handle subtasks safely
+    List<Subtask> subtasksList = [];
+    if (json['subtasks'] != null) {
+      try {
+        subtasksList =
+            (json['subtasks'] as List<dynamic>)
+                .map((subtask) => Subtask.fromJson(subtask))
+                .toList();
+      } catch (e) {
+        debugPrint('Error parsing subtasks: $e');
+      }
+    }
+
     return Task(
-      id: json['_id'],
-      title: json['title'],
+      id: json['_id'] ?? '',
+      title: json['title'] ?? '',
       description: json['description'],
-      board: json['board'],
-      assignees:
-          (json['assignees'] as List<dynamic>)
-              .map((assignee) => User.fromJson(assignee))
-              .toList(),
-      deadline:
-          json['deadline'] != null ? DateTime.parse(json['deadline']) : null,
-      status: json['status'],
-      priority: json['priority'],
-      order: json['order'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      board: boardId,
+      assignees: assigneesList,
+      deadline: deadlineDate,
+      status: json['status'] ?? 'To Do',
+      priority: json['priority'] ?? 'Medium',
+      order: json['order'] ?? 0,
+      attachments: attachmentsList,
+      subtasks: subtasksList,
+      createdAt: createdAtDate,
+      updatedAt: updatedAtDate,
     );
   }
 
@@ -56,6 +186,9 @@ class Task {
       'deadline': deadline?.toIso8601String(),
       'status': status,
       'priority': priority,
+      'attachments':
+          attachments.map((attachment) => attachment.toJson()).toList(),
+      'subtasks': subtasks.map((subtask) => subtask.toJson()).toList(),
     };
   }
 
@@ -68,6 +201,8 @@ class Task {
     String? status,
     String? priority,
     int? order,
+    List<Attachment>? attachments,
+    List<Subtask>? subtasks,
   }) {
     return Task(
       id: id,
@@ -79,6 +214,8 @@ class Task {
       status: status ?? this.status,
       priority: priority ?? this.priority,
       order: order ?? this.order,
+      attachments: attachments ?? this.attachments,
+      subtasks: subtasks ?? this.subtasks,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

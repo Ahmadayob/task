@@ -34,7 +34,7 @@ class ImageUtils {
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: backgroundColor ?? Colors.grey[300],
-      backgroundImage: hasValidImage ? NetworkImage(imageUrl!) : null,
+      backgroundImage: hasValidImage ? NetworkImage(imageUrl) : null,
       child:
           !hasValidImage
               ? Text(

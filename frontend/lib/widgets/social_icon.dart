@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class SocialIcon extends StatelessWidget {
   final String provider;
 
-  const SocialIcon({Key? key, required this.provider}) : super(key: key);
+  const SocialIcon({super.key, required this.provider});
 
   @override
   Widget build(BuildContext context) {

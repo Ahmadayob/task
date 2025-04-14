@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:frontend/core/constants/api_constants.dart';
 import 'package:frontend/core/models/board.dart';
 import 'package:frontend/core/utils/api_exception.dart';
@@ -15,11 +16,26 @@ class BoardService {
         },
       );
 
+      // Debug print
+      debugPrint('getBoardsByProject response status: ${response.statusCode}');
+
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         final boardsData = responseData['data']['boards'] as List<dynamic>;
-        return boardsData.map((json) => Board.fromJson(json)).toList();
+
+        // Parse each board individually to catch and handle errors
+        List<Board> boards = [];
+        for (var boardJson in boardsData) {
+          try {
+            boards.add(Board.fromJson(boardJson));
+          } catch (e) {
+            debugPrint('Error parsing individual board: $e');
+            // Continue with next board instead of failing the whole list
+          }
+        }
+
+        return boards;
       } else {
         throw ApiException(
           message: responseData['message'] ?? 'Failed to load boards',
@@ -27,6 +43,7 @@ class BoardService {
         );
       }
     } catch (e) {
+      debugPrint('Error in getBoardsByProject: $e');
       if (e is ApiException) {
         rethrow;
       }
@@ -76,6 +93,9 @@ class BoardService {
         body: jsonEncode(boardData),
       );
 
+      // Debug print
+      debugPrint('createBoard response status: ${response.statusCode}');
+
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
@@ -87,6 +107,7 @@ class BoardService {
         );
       }
     } catch (e) {
+      debugPrint('Error in createBoard: $e');
       if (e is ApiException) {
         rethrow;
       }
@@ -171,6 +192,9 @@ class BoardService {
         body: jsonEncode({'boards': boardOrders}),
       );
 
+      // Debug print
+      debugPrint('reorderBoards response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         return true;
       } else {
@@ -181,6 +205,7 @@ class BoardService {
         );
       }
     } catch (e) {
+      debugPrint('Error in reorderBoards: $e');
       if (e is ApiException) {
         rethrow;
       }

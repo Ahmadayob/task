@@ -7,8 +7,7 @@ class UserAvatar extends StatelessWidget {
   final double size;
   final VoidCallback? onTap;
 
-  const UserAvatar({Key? key, required this.user, this.size = 40, this.onTap})
-    : super(key: key);
+  const UserAvatar({super.key, required this.user, this.size = 40, this.onTap});
 
   @override
   Widget build(BuildContext context) {

@@ -9,7 +9,7 @@ import 'package:frontend/widgets/custom_text_field.dart';
 class EditProjectScreen extends StatefulWidget {
   final Project project;
 
-  const EditProjectScreen({Key? key, required this.project}) : super(key: key);
+  const EditProjectScreen({super.key, required this.project});
 
   @override
   State<EditProjectScreen> createState() => _EditProjectScreenState();

@@ -35,6 +35,10 @@ class SubtaskService {
 
       await subtask.save()
 
+      // Add the subtask to the task's subtasks array
+      task.subtasks.push(subtask._id)
+      await task.save()
+
       // Create activity log
       await ActivityLog.create({
         user: userId,
@@ -170,6 +174,10 @@ class SubtaskService {
 
       // Get task for activity log
       const task = await Task.findById(subtask.task)
+
+      // Remove the subtask from the task's subtasks array
+      task.subtasks = task.subtasks.filter(id => id.toString() !== subtaskId.toString())
+      await task.save()
 
       // Delete the subtask
       await Subtask.findByIdAndDelete(subtaskId)

@@ -8,7 +8,7 @@ import 'package:frontend/widgets/empty_state.dart';
 import 'package:frontend/widgets/error_state.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+  const NotificationsScreen({super.key});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();

@@ -6,7 +6,7 @@ import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/core/theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -16,44 +16,30 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    _initializeApp();
   }
 
-  Future<void> _checkAuth() async {
-    // Add a delay to show the splash screen
-    await Future.delayed(const Duration(seconds: 2));
+  Future<void> _initializeApp() async {
+    // Add a minimum delay to show the splash screen
+    await Future.delayed(const Duration(seconds: 1));
+
     if (!mounted) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // Wait for auth to initialize if it hasn't already
-    if (!authProvider.isInitialized) {
-      // Set up a listener to wait for initialization
-      authProvider.addListener(_onAuthInitialized);
-    } else {
-      _navigateBasedOnAuth();
-    }
-  }
+    // Wait for auth provider to initialize
+    await authProvider.ensureInitialized();
 
-  void _onAuthInitialized() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (authProvider.isInitialized) {
-      // Remove the listener once initialized
-      authProvider.removeListener(_onAuthInitialized);
-      _navigateBasedOnAuth();
-    }
-  }
-
-  void _navigateBasedOnAuth() {
     if (!mounted) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
+    // Navigate based on authentication state
     if (authProvider.isAuthenticated) {
+      print('User is authenticated, navigating to home screen');
       Navigator.of(
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } else {
+      print('User is not authenticated, navigating to onboarding screen');
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
       );

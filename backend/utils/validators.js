@@ -53,13 +53,16 @@ const projectValidation = {
 // Board validation schemas
 const boardValidation = {
   create: Joi.object({
-    title: Joi.string().required().min(1).max(50),
-    project: Joi.string()
-      .required()
-      .regex(/^[0-9a-fA-F]{24}$/),
+    title: Joi.string().min(3).max(100).required(),
+    project: Joi.string().required(),
+    status: Joi.string().valid("todo", "in_progress", "review", "done").default("todo"),
+    order: Joi.number(),
   }),
+
   update: Joi.object({
-    title: Joi.string().min(1).max(50),
+    title: Joi.string().min(3).max(100),
+    status: Joi.string().valid("todo", "in_progress", "review", "done"),
+    order: Joi.number(),
   }),
 }
 

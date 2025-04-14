@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/theme/app_colors.dart';
 import 'package:frontend/widgets/social_icon.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/core/providers/auth_provider.dart';
@@ -9,7 +8,7 @@ import 'package:frontend/widgets/custom_button.dart';
 import 'package:frontend/widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();

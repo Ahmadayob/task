@@ -32,7 +32,7 @@ class SubtaskController {
         return ApiResponse.error(res, 'Unauthorized to create subtask for this task', 403);
       }
       
-      const subtask = await subtaskService.createSubtask(req.body, taskId, req.userId);
+      const subtask = await subtaskService.createSubtask(taskId, req.body, req.userId);
       
       // Emit socket event for real-time updates
       const io = req.app.get('io');

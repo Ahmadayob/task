@@ -13,7 +13,7 @@ import 'package:frontend/widgets/error_state.dart';
 class BoardDetailScreen extends StatefulWidget {
   final Board board;
 
-  const BoardDetailScreen({Key? key, required this.board}) : super(key: key);
+  const BoardDetailScreen({super.key, required this.board});
 
   @override
   State<BoardDetailScreen> createState() => _BoardDetailScreenState();

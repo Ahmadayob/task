@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:frontend/core/models/user.dart';
 import 'package:intl/intl.dart';
 import 'package:frontend/core/models/project.dart';
-import 'package:frontend/core/theme/app_colors.dart';
 
 class ProjectCard extends StatelessWidget {
   final Project project;
   final VoidCallback onTap;
 
-  const ProjectCard({Key? key, required this.project, required this.onTap})
-    : super(key: key);
+  const ProjectCard({super.key, required this.project, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

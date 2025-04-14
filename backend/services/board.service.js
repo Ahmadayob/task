@@ -1,17 +1,16 @@
 // Board service
 const Board = require("../models/board.model")
 const Project = require("../models/project.model")
+const Task = require("../models/task.model")
 const ActivityLog = require("../models/activityLog.model")
-const Notification = require("../models/notification.model")
 const logger = require("../utils/logger")
-const notificationService = require("./notification.service")
 
 class BoardService {
   /**
    * Create a new board
    * @param {Object} boardData - Board data
-   * @param {string} userId - Creator user ID
-   * @returns {Object} - Newly created board
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} - Created board
    */
   async createBoard(boardData, userId) {
     try {
@@ -21,71 +20,29 @@ class BoardService {
         throw new Error("Project not found")
       }
 
-      // Get the highest order value for existing boards in this project
+      // Get the highest order value for boards in this project
       const highestOrderBoard = await Board.findOne({ project: boardData.project }).sort({ order: -1 })
 
-      const order = highestOrderBoard ? highestOrderBoard.order + 1 : 0
+      const newOrder = highestOrderBoard ? highestOrderBoard.order + 1 : 0
 
-      // Create the board
-      const board = new Board({
+      // Create board with the next order value
+      const board = await Board.create({
         ...boardData,
-        order,
+        order: newOrder,
+        status: boardData.status || "todo", // Default to 'todo' if not provided
       })
-
-      await board.save()
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Created board",
-        details: `Board "${board.title}" was created in project "${project.title}"`,
+        action: "Board created",
+        details: `Board "${board.title}" created`,
         relatedItem: {
           itemId: board._id,
           itemType: "Board",
         },
+        project: board.project,
       })
-
-      // Create notifications for project members
-      try {
-        logger.info(
-          `Creating board notifications for project ${project._id} with ${project.members ? project.members.length : 0} members`,
-        )
-
-        // Directly create notifications for all project members except the creator
-        if (project.members && project.members.length > 0) {
-          const notificationPromises = project.members
-            .map(async (memberId) => {
-              // Don't notify the creator
-              if (memberId.toString() === userId.toString()) return null
-
-              try {
-                // Create notification directly using the Notification model
-                return await Notification.create({
-                  recipient: memberId,
-                  sender: userId,
-                  message: `A new board "${board.title}" was created in project "${project.title}"`,
-                  relatedItem: {
-                    itemId: board._id,
-                    itemType: "Board",
-                  },
-                  isRead: false,
-                })
-              } catch (notifError) {
-                logger.error(`Error creating notification for member ${memberId}: ${notifError.message}`)
-                return null
-              }
-            })
-            .filter(Boolean)
-
-          await Promise.all(notificationPromises)
-          logger.info(`Created ${notificationPromises.length} board notifications`)
-        } else {
-          logger.info(`No members to notify for project ${project._id}`)
-        }
-      } catch (notificationError) {
-        logger.error(`Error creating board notifications: ${notificationError.message}`)
-        // Continue execution even if notification creation fails
-      }
 
       return board
     } catch (error) {
@@ -97,7 +54,7 @@ class BoardService {
   /**
    * Get all boards for a project
    * @param {string} projectId - Project ID
-   * @returns {Array} - List of boards
+   * @returns {Promise<Array>} - Array of boards
    */
   async getBoardsByProject(projectId) {
     try {
@@ -107,7 +64,7 @@ class BoardService {
         throw new Error("Project not found")
       }
 
-      // Get all boards for the project
+      // Find all boards for the project
       const boards = await Board.find({ project: projectId }).sort({ order: 1 })
 
       return boards
@@ -120,7 +77,7 @@ class BoardService {
   /**
    * Get board by ID
    * @param {string} boardId - Board ID
-   * @returns {Object} - Board data
+   * @returns {Promise<Object>} - Board object
    */
   async getBoardById(boardId) {
     try {
@@ -138,35 +95,43 @@ class BoardService {
   }
 
   /**
-   * Update board
+   * Update a board
    * @param {string} boardId - Board ID
    * @param {Object} updateData - Data to update
-   * @param {string} userId - User ID making the update
-   * @returns {Object} - Updated board
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} - Updated board
    */
   async updateBoard(boardId, updateData, userId) {
     try {
+      // Find board
       const board = await Board.findById(boardId)
-
       if (!board) {
         throw new Error("Board not found")
       }
 
-      // Update the board
-      const updatedBoard = await Board.findByIdAndUpdate(boardId, updateData, { new: true, runValidators: true })
+      console.log("Updating board with data:", updateData)
+
+      // Update board
+      Object.keys(updateData).forEach((key) => {
+        // Allow updating status field
+        board[key] = updateData[key]
+      })
+
+      await board.save()
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Updated board",
-        details: `Board "${board.title}" was updated`,
+        action: "Board updated",
+        details: `Board "${board.title}" updated`,
         relatedItem: {
           itemId: board._id,
           itemType: "Board",
         },
+        project: board.project,
       })
 
-      return updatedBoard
+      return board
     } catch (error) {
       logger.error(`Error updating board: ${error.message}`)
       throw error
@@ -174,32 +139,47 @@ class BoardService {
   }
 
   /**
-   * Delete board
+   * Delete a board
    * @param {string} boardId - Board ID
-   * @param {string} userId - User ID making the deletion
-   * @returns {boolean} - Success status
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} - Success status
    */
   async deleteBoard(boardId, userId) {
     try {
+      // Find board
       const board = await Board.findById(boardId)
-
       if (!board) {
         throw new Error("Board not found")
       }
 
-      // Delete the board
-      await Board.findByIdAndDelete(boardId)
+      const projectId = board.project
+      const boardTitle = board.title
+
+      // Delete all tasks in the board
+      await Task.deleteMany({ board: boardId })
+
+      // Delete board
+      await board.deleteOne()
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Deleted board",
-        details: `Board "${board.title}" was deleted`,
+        action: "Board deleted",
+        details: `Board "${boardTitle}" deleted`,
         relatedItem: {
-          itemId: board._id,
+          itemId: boardId,
           itemType: "Board",
         },
+        project: projectId,
       })
+
+      // Reorder remaining boards
+      const remainingBoards = await Board.find({ project: projectId }).sort({ order: 1 })
+
+      for (let i = 0; i < remainingBoards.length; i++) {
+        remainingBoards[i].order = i
+        await remainingBoards[i].save()
+      }
 
       return true
     } catch (error) {
@@ -209,11 +189,11 @@ class BoardService {
   }
 
   /**
-   * Reorder boards
+   * Reorder boards within a project
    * @param {string} projectId - Project ID
-   * @param {Array} boardOrders - Array of {id, order} objects
-   * @param {string} userId - User ID making the update
-   * @returns {Array} - Updated boards
+   * @param {Array} boardOrders - Array of board IDs and their new orders
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} - Success status
    */
   async reorderBoards(projectId, boardOrders, userId) {
     try {
@@ -223,23 +203,30 @@ class BoardService {
         throw new Error("Project not found")
       }
 
-      // Update each board's order
-      const updatePromises = boardOrders.map(({ id, order }) => Board.findByIdAndUpdate(id, { order }, { new: true }))
+      // Update order for each board
+      for (const boardOrder of boardOrders) {
+        const { boardId, order } = boardOrder
 
-      const updatedBoards = await Promise.all(updatePromises)
+        const board = await Board.findById(boardId)
+        if (board && board.project.toString() === projectId) {
+          board.order = order
+          await board.save()
+        }
+      }
 
       // Create activity log
       await ActivityLog.create({
         user: userId,
-        action: "Reordered boards",
-        details: `Boards in project "${project.title}" were reordered`,
+        action: "Boards reordered",
+        details: "Boards reordered in project",
         relatedItem: {
-          itemId: project._id,
+          itemId: projectId,
           itemType: "Project",
         },
+        project: projectId,
       })
 
-      return updatedBoards
+      return true
     } catch (error) {
       logger.error(`Error reordering boards: ${error.message}`)
       throw error
@@ -248,4 +235,3 @@ class BoardService {
 }
 
 module.exports = new BoardService()
-

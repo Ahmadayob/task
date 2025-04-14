@@ -16,6 +16,7 @@ const subtaskRoutes = require("./routes/subtasks.routes")
 const activityLogRoutes = require("./routes/activityLog.routes")
 const notificationRoutes = require("./routes/notifications.routes")
 const teamRoutes = require("./routes/teams.routes")
+const searchRoutes = require('./routes/search.routes')
 
 // Initialize express app
 const app = express()
@@ -42,6 +43,7 @@ app.use("/api/subtasks", subtaskRoutes)
 app.use("/api/activity-logs", activityLogRoutes)
 app.use("/api/notifications", notificationRoutes)
 app.use("/api/teams", teamRoutes)
+app.use("/api/search", searchRoutes)
 
 // Health check route
 app.get("/health", (req, res) => {

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/core/models/project.dart';
 import 'package:frontend/core/models/task.dart';
@@ -6,6 +7,8 @@ import 'package:frontend/core/services/task_service.dart';
 import 'package:frontend/core/theme/app_colors.dart';
 import 'package:frontend/screens/projects/create_project_screen.dart';
 import 'package:frontend/screens/projects/project_detail_screen.dart';
+import 'package:frontend/screens/tasks/today_tasks_screen.dart';
+import 'package:frontend/screens/tasks/task_detail_screen.dart';
 import 'package:frontend/widgets/empty_state.dart';
 import 'package:frontend/widgets/error_state.dart';
 import 'package:frontend/widgets/recent_project_card.dart';
@@ -16,9 +19,12 @@ import 'package:frontend/screens/auth/login_screen.dart';
 import 'package:frontend/screens/home/projects_screen.dart';
 import 'package:frontend/screens/home/notifications_screen.dart';
 import 'package:frontend/screens/profile/profile_screen.dart';
+import 'package:frontend/core/services/search_service.dart';
+import 'package:frontend/screens/boards/board_detail_screen.dart';
+import 'package:frontend/screens/search/search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -26,6 +32,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  bool _isMenuOpen = false;
+  final GlobalKey _fabKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+  Function(PointerEvent)? _pointerRouteCallback;
 
   final List<Widget> _screens = [
     const HomeContent(),
@@ -34,6 +44,27 @@ class _HomeScreenState extends State<HomeScreen> {
     const NotificationsScreen(),
     const ProfileScreen(),
   ];
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    _removeGlobalRoute();
+    super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _removeGlobalRoute() {
+    if (_pointerRouteCallback != null) {
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(
+        _pointerRouteCallback!,
+      );
+      _pointerRouteCallback = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,13 +88,20 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
       floatingActionButton: FloatingActionButton(
+        key: _fabKey,
         onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CreateProjectScreen()),
-          );
+          setState(() {
+            _isMenuOpen = !_isMenuOpen;
+          });
+          if (_isMenuOpen) {
+            _showPopupMenu();
+          } else {
+            _removeOverlay();
+            _removeGlobalRoute();
+          }
         },
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(_isMenuOpen ? Icons.close : Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -86,6 +124,148 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildNavItem(4, Icons.person_outline, Icons.person, 'Profile'),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showPopupMenu() {
+    _removeOverlay();
+    _removeGlobalRoute();
+
+    // Get the render box from the FAB's global key
+    final RenderBox? renderBox =
+        _fabKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final Size size = renderBox.size;
+    final Offset position = renderBox.localToGlobal(Offset.zero);
+
+    // Calculate position for the popup menu (above the FAB)
+    final double menuWidth = 200.0;
+    final double menuHeight = 120.0; // Approximate height of the menu
+
+    _overlayEntry = OverlayEntry(
+      builder:
+          (context) => Positioned(
+            left:
+                position.dx +
+                (size.width / 2) -
+                (menuWidth / 2), // Center horizontally over FAB
+            top:
+                position.dy -
+                menuHeight -
+                16, // Position above FAB with some padding
+            width: menuWidth,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildMenuOption(
+                      icon: Icons.folder_open,
+                      label: 'Create Project',
+                      onTap: () {
+                        _removeOverlay();
+                        _removeGlobalRoute();
+                        setState(() {
+                          _isMenuOpen = false;
+                        });
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CreateProjectScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    _buildMenuOption(
+                      icon: Icons.group_add,
+                      label: 'Create Group',
+                      onTap: () {
+                        _removeOverlay();
+                        _removeGlobalRoute();
+                        setState(() {
+                          _isMenuOpen = false;
+                        });
+                        // Group creation functionality will be added later
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Group creation coming soon!'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+
+    // Define the callback function
+    _pointerRouteCallback = (PointerEvent event) {
+      if (event is PointerDownEvent && _isMenuOpen) {
+        // Check if the tap is outside the menu area
+        final Rect menuRect = Rect.fromLTWH(
+          position.dx + (size.width / 2) - (menuWidth / 2),
+          position.dy - menuHeight - 16,
+          menuWidth,
+          menuHeight,
+        );
+
+        // Check if the tap is outside the menu and outside the FAB
+        final Rect fabRect = Rect.fromLTWH(
+          position.dx,
+          position.dy,
+          size.width,
+          size.height,
+        );
+
+        if (!menuRect.contains(event.position) &&
+            !fabRect.contains(event.position)) {
+          _removeOverlay();
+          _removeGlobalRoute();
+          setState(() {
+            _isMenuOpen = false;
+          });
+        }
+      }
+    };
+
+    // Add the callback to the global route
+    GestureBinding.instance.pointerRouter.addGlobalRoute(
+      _pointerRouteCallback!,
+    );
+  }
+
+  Widget _buildMenuOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.primary),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );
@@ -133,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class HomeContent extends StatefulWidget {
-  const HomeContent({Key? key}) : super(key: key);
+  const HomeContent({super.key});
 
   @override
   State<HomeContent> createState() => _HomeContentState();
@@ -144,6 +324,51 @@ class _HomeContentState extends State<HomeContent> {
   late Future<List<Task>> _tasksFuture;
   final ProjectService _projectService = ProjectService();
   final TaskService _taskService = TaskService();
+  final SearchService _searchService = SearchService();
+  bool _isLoading = false;
+  bool _isSearching = false;
+  Map<String, dynamic>? _searchResults;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSearch(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _isSearching = false;
+        _searchResults = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.token == null) {
+        throw Exception('Authentication token is missing');
+      }
+
+      final results = await _searchService.search(authProvider.token!, query);
+      setState(() {
+        _searchResults = results;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error searching: $e')));
+    } finally {
+      setState(() {
+        _isSearching = false;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -154,35 +379,30 @@ class _HomeContentState extends State<HomeContent> {
   void _loadData() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.token != null) {
+      setState(() {
+        _isLoading = true;
+      });
+
       _projectsFuture = _projectService.getAllProjects(authProvider.token);
-      // For tasks, we'll need to implement a method to get today's tasks
-      _tasksFuture = _getTodayTasks(authProvider.token!);
-    }
-  }
+      // Use the method to get today's tasks
+      _tasksFuture = _taskService.getTodayTasks(authProvider.token!);
 
-  Future<List<Task>> _getTodayTasks(String token) async {
-    // This is a placeholder. You'll need to implement a method in your TaskService
-    // to fetch tasks for today. For now, we'll just get all tasks and filter them.
-    try {
-      // Assuming you have a method to get all tasks for the user
-      final allTasks = await _taskService.getAllTasks(token);
-
-      // Filter tasks for today
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-
-      return allTasks.where((task) {
-        if (task.deadline == null) return false;
-        final taskDate = DateTime(
-          task.deadline!.year,
-          task.deadline!.month,
-          task.deadline!.day,
-        );
-        return taskDate.isAtSameMomentAs(today);
-      }).toList();
-    } catch (e) {
-      // Return empty list on error
-      return [];
+      // Set loading to false when both futures complete
+      Future.wait([_projectsFuture, _tasksFuture])
+          .then((_) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          })
+          .catchError((error) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          });
     }
   }
 
@@ -190,14 +410,9 @@ class _HomeContentState extends State<HomeContent> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Task Management'),
+        title: const Text('Task Management', style: TextStyle(fontSize: 18)),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            // Open drawer or menu
-          },
-        ),
+
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -209,228 +424,393 @@ class _HomeContentState extends State<HomeContent> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() {
-            _loadData();
-          });
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search',
-                          hintStyle: TextStyle(color: Colors.grey[400]),
-                          border: InputBorder.none,
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                onRefresh: () async {
+                  _loadData();
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Search Bar
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SearchScreen(),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Search tasks, boards, and projects',
+                                  style: TextStyle(color: Colors.grey[400]),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.tune, color: Colors.blue),
-                      onPressed: () {
-                        // Show filter options
-                      },
-                    ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-              // Recent Projects
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Project',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ProjectsScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'See All',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                      // Search Results
+                      if (_searchResults != null) ...[
+                        if (_searchResults!['tasks'].isNotEmpty) ...[
+                          const Text(
+                            'Tasks',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _searchResults!['tasks'].length,
+                            itemBuilder: (context, index) {
+                              final task = _searchResults!['tasks'][index];
+                              return TaskItem(
+                                title: task.title,
+                                time:
+                                    task.deadline != null
+                                        ? '${task.deadline!.hour.toString().padLeft(2, '0')}:${task.deadline!.minute.toString().padLeft(2, '0')}'
+                                        : 'No deadline',
+                                isCompleted: task.status == 'Done',
+                                task: task,
+                                onStatusChanged: (completed) {
+                                  _loadData();
+                                },
+                                onTap: () {
+                                  Navigator.of(context)
+                                      .push(
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) =>
+                                                  TaskDetailScreen(task: task),
+                                        ),
+                                      )
+                                      .then((result) {
+                                        if (result == true) {
+                                          _loadData();
+                                        }
+                                      });
+                                },
+                              );
+                            },
+                          ),
+                        ],
 
-              const SizedBox(height: 16),
+                        if (_searchResults!['boards'].isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Boards',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _searchResults!['boards'].length,
+                            itemBuilder: (context, index) {
+                              final board = _searchResults!['boards'][index];
+                              return ListTile(
+                                title: Text(board.title),
+                                subtitle: Text(
+                                  'Project ID: ${board.projectId}',
+                                ),
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) =>
+                                              BoardDetailScreen(board: board),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
 
-              // Recent Projects List
-              SizedBox(
-                height: 300, // Fixed height for the horizontal list
-                child: FutureBuilder<List<Project>>(
-                  future: _projectsFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (snapshot.hasError) {
-                      return ErrorState(
-                        message: 'Failed to load projects',
-                        onRetry: () {
-                          setState(() {
-                            _loadData();
-                          });
-                        },
-                      );
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const EmptyState(
-                        icon: Icons.folder_outlined,
-                        title: 'No Projects Yet',
-                        message: 'Create your first project to get started',
-                      );
-                    } else {
-                      final projects = snapshot.data!;
-                      // Sort projects by creation date (newest first)
-                      projects.sort(
-                        (a, b) => b.createdAt.compareTo(a.createdAt),
-                      );
-                      // Take only the 3 most recent projects
-                      final recentProjects = projects.take(3).toList();
-
-                      return ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: recentProjects.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: SizedBox(
-                              width:
-                                  MediaQuery.of(context).size.width -
-                                  64, // Full width minus padding
-                              child: RecentProjectCard(
-                                project: recentProjects[index],
+                        if (_searchResults!['projects'].isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Projects',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _searchResults!['projects'].length,
+                            itemBuilder: (context, index) {
+                              final project =
+                                  _searchResults!['projects'][index];
+                              return RecentProjectCard(
+                                project: project,
                                 onTap: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder:
                                           (_) => ProjectDetailScreen(
-                                            project: recentProjects[index],
+                                            project: project,
                                           ),
                                     ),
                                   );
                                 },
+                              );
+                            },
+                          ),
+                        ],
+
+                        if (_searchResults!['tasks'].isEmpty &&
+                            _searchResults!['boards'].isEmpty &&
+                            _searchResults!['projects'].isEmpty) ...[
+                          const SizedBox(height: 16),
+                          const Center(child: Text('No results found')),
+                        ],
+                      ] else ...[
+                        // Recent Projects
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Recent Project',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          );
-                        },
-                      );
-                    }
-                  },
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProjectsScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'See All',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Recent Projects List
+                        SizedBox(
+                          height: 300,
+                          child: FutureBuilder<List<Project>>(
+                            future: _projectsFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              } else if (snapshot.hasError) {
+                                return ErrorState(
+                                  message: 'Failed to load projects',
+                                  onRetry: () {
+                                    _loadData();
+                                  },
+                                );
+                              } else if (!snapshot.hasData ||
+                                  snapshot.data!.isEmpty) {
+                                return const EmptyState(
+                                  icon: Icons.folder_outlined,
+                                  title: 'No Projects Yet',
+                                  message:
+                                      'Create your first project to get started',
+                                );
+                              } else {
+                                final projects = snapshot.data!;
+                                projects.sort(
+                                  (a, b) => b.createdAt.compareTo(a.createdAt),
+                                );
+                                final recentProjects =
+                                    projects.take(3).toList();
+
+                                return ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: recentProjects.length,
+                                  itemBuilder: (context, index) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 16),
+                                      child: SizedBox(
+                                        width:
+                                            MediaQuery.of(context).size.width -
+                                            64,
+                                        child: RecentProjectCard(
+                                          project: recentProjects[index],
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (_) => ProjectDetailScreen(
+                                                      project:
+                                                          recentProjects[index],
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              }
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Today's Tasks
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Today Task',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context)
+                                    .push(
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => const TodayTasksScreen(),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      _loadData();
+                                    });
+                              },
+                              child: const Text(
+                                'See All',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Task List
+                        FutureBuilder<List<Task>>(
+                          future: _tasksFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            } else if (snapshot.hasError) {
+                              return ErrorState(
+                                message: 'Failed to load tasks',
+                                onRetry: () {
+                                  _loadData();
+                                },
+                              );
+                            } else if (!snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
+                              return const EmptyState(
+                                icon: Icons.task_outlined,
+                                title: 'No Tasks Today',
+                                message:
+                                    'You have no tasks scheduled for today',
+                              );
+                            } else {
+                              final tasks = snapshot.data!;
+                              tasks.sort((a, b) {
+                                if (a.deadline == null) return 1;
+                                if (b.deadline == null) return -1;
+                                return a.deadline!.compareTo(b.deadline!);
+                              });
+
+                              return ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: tasks.length,
+                                separatorBuilder:
+                                    (context, index) =>
+                                        const SizedBox(height: 8),
+                                itemBuilder: (context, index) {
+                                  final task = tasks[index];
+                                  final timeString =
+                                      task.deadline != null
+                                          ? 'Today - ${task.deadline!.hour.toString().padLeft(2, '0')}:${task.deadline!.minute.toString().padLeft(2, '0')}'
+                                          : 'Today';
+
+                                  return TaskItem(
+                                    title: task.title,
+                                    time: timeString,
+                                    isCompleted: task.status == 'Done',
+                                    task: task,
+                                    onStatusChanged: (completed) {
+                                      _loadData();
+                                    },
+                                    onTap: () {
+                                      Navigator.of(context)
+                                          .push(
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (_) => TaskDetailScreen(
+                                                    task: task,
+                                                  ),
+                                            ),
+                                          )
+                                          .then((result) {
+                                            if (result == true) {
+                                              _loadData();
+                                            }
+                                          });
+                                    },
+                                  );
+                                },
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Today's Tasks
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Today Task',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to all tasks
-                    },
-                    child: const Text(
-                      'See All',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Task List
-              FutureBuilder<List<Task>>(
-                future: _tasksFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return ErrorState(
-                      message: 'Failed to load tasks',
-                      onRetry: () {
-                        setState(() {
-                          _loadData();
-                        });
-                      },
-                    );
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const EmptyState(
-                      icon: Icons.task_outlined,
-                      title: 'No Tasks Today',
-                      message: 'You have no tasks scheduled for today',
-                    );
-                  } else {
-                    final tasks = snapshot.data!;
-                    // Sort tasks by time
-                    tasks.sort((a, b) {
-                      if (a.deadline == null) return 1;
-                      if (b.deadline == null) return -1;
-                      return a.deadline!.compareTo(b.deadline!);
-                    });
-
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: tasks.length,
-                      separatorBuilder: (context, index) => const Divider(),
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        final timeString =
-                            task.deadline != null
-                                ? 'Today - ${task.deadline!.hour.toString().padLeft(2, '0')}:${task.deadline!.minute.toString().padLeft(2, '0')}'
-                                : 'Today';
-
-                        return TaskItem(
-                          title: task.title,
-                          time: timeString,
-                          isCompleted: task.status == 'Done',
-                          onTap: () {
-                            // Navigate to task detail
-                          },
-                        );
-                      },
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
