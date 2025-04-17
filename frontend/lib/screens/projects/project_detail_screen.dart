@@ -11,6 +11,7 @@ import 'package:frontend/screens/boards/create_board_screen.dart';
 import 'package:frontend/screens/projects/edit_project_screen.dart';
 import 'package:frontend/widgets/kanban_board.dart';
 import 'package:intl/intl.dart';
+import 'package:frontend/screens/tasks/create_task_screen.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final Project project;
@@ -29,12 +30,38 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   bool _isLoading = false;
   final Map<String, List<Task>> _boardTasks = {};
   String? _error;
+  String? _selectedBoardId;
 
   @override
   void initState() {
     super.initState();
     _project = widget.project;
     _loadBoards();
+  }
+
+  void _showCreateTaskDialog(BuildContext context) {
+    if (_selectedBoardId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a board first')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            child: CreateTaskScreen(
+              boardId: _selectedBoardId!,
+              projectId: widget.project.id,
+              onTaskCreated: () {
+                // Refresh the board's tasks
+                _loadBoards();
+                Navigator.pop(context);
+              },
+            ),
+          ),
+    );
   }
 
   void _loadBoards() async {

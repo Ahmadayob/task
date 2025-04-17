@@ -10,8 +10,15 @@ import 'package:frontend/core/models/attachment.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   final String boardId;
+  final String projectId;
+  final VoidCallback? onTaskCreated;
 
-  const CreateTaskScreen({super.key, required this.boardId});
+  const CreateTaskScreen({
+    super.key,
+    required this.boardId,
+    required this.projectId,
+    this.onTaskCreated,
+  });
 
   @override
   State<CreateTaskScreen> createState() => _CreateTaskScreenState();

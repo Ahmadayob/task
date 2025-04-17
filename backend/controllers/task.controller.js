@@ -110,19 +110,39 @@ class TaskController {
     try {
       const { board } = req.body
 
+      console.log('Createing task with user: ', {
+        userId: req.userId,
+        userRole: req.userRole,
+        userName: req.user?.name
+      })
+
       // Get board to check permissions
       const boardDoc = await boardService.getBoardById(board)
       if (!boardDoc) {
         return ApiResponse.error(res, "Board not found", 404)
       }
 
+      console.log('found board:', {
+        boardId: boardDoc.id,
+        projectId: boardDoc.project
+      }
+      )
+
       // Get project to check permissions
       const project = await projectService.getProjectById(boardDoc.project)
 
       // Check if the user is authorized
       const isAdmin = req.userRole === "Admin"
-      const isManager = project.manager.toString() === req.userId.toString()
-      const isMember = project.members.some((member) => member.toString() === req.userId.toString())
+      const isManager = project.manager._id.toString() === req.userId.toString()
+      const isMember = project.members.some((member) => member._id.toString() === req.userId.toString())
+
+      console.log('Authorization check:', {
+        isAdmin,
+        isManager,
+        isMember,
+        userId: req.userId.toString(),
+        projectManager: project.manager._id.toString()
+      })
 
       if (!isAdmin && !isManager && !isMember) {
         return ApiResponse.error(res, "Unauthorized to create task in this board", 403)
